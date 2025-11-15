@@ -3,17 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Users, CheckCircle, LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { BookOpen, Users, CheckCircle } from "lucide-react";
+import DashboardHeader from "@/components/layout/DashboardHeader";
 
 interface FormateurDashboardProps {
   user: User;
 }
 
 const FormateurDashboard = ({ user }: FormateurDashboardProps) => {
-  const navigate = useNavigate();
-
   const { data: profile } = useQuery({
     queryKey: ["profile", user.id],
     queryFn: async () => {
@@ -79,31 +76,12 @@ const FormateurDashboard = ({ user }: FormateurDashboardProps) => {
     },
   });
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Déconnexion réussie");
-    navigate("/auth");
-  };
-
   const coursesCount = courses?.length || 0;
   const lessonsCount = lessons?.length || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">E-GrainoLab</h1>
-            <p className="text-sm text-muted-foreground">
-              Espace Formateur - {profile?.full_name || "Formateur"}
-            </p>
-          </div>
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Déconnexion
-          </Button>
-        </div>
-      </header>
+      <DashboardHeader />
 
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6 md:grid-cols-3 mb-8">

@@ -3,17 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Users, GraduationCap, CheckCircle, LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { BookOpen, Users, GraduationCap, CheckCircle } from "lucide-react";
+import DashboardHeader from "@/components/layout/DashboardHeader";
 
 interface SuperAdminDashboardProps {
   user: User;
 }
 
 const SuperAdminDashboard = ({ user }: SuperAdminDashboardProps) => {
-  const navigate = useNavigate();
-
   const { data: stats } = useQuery({
     queryKey: ["admin-stats"],
     queryFn: async () => {
@@ -46,28 +43,9 @@ const SuperAdminDashboard = ({ user }: SuperAdminDashboardProps) => {
     },
   });
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Déconnexion réussie");
-    navigate("/auth");
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">E-GrainoLab</h1>
-            <p className="text-sm text-muted-foreground">
-              Administration Globale
-            </p>
-          </div>
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Déconnexion
-          </Button>
-        </div>
-      </header>
+      <DashboardHeader />
 
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6 md:grid-cols-4 mb-8">

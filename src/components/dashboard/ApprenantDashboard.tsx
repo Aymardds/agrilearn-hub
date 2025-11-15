@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Award, TrendingUp, LogOut } from "lucide-react";
+import { BookOpen, Award, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import DashboardHeader from "@/components/layout/DashboardHeader";
 
 interface ApprenantDashboardProps {
   user: User;
@@ -54,32 +54,13 @@ const ApprenantDashboard = ({ user }: ApprenantDashboardProps) => {
     },
   });
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    toast.success("Déconnexion réussie");
-    navigate("/auth");
-  };
-
   const inProgressCount = enrollments?.filter((e) => !e.completed_at).length || 0;
   const completedCount = enrollments?.filter((e) => e.completed_at).length || 0;
   const certificatesCount = certificates?.length || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">E-GrainoLab</h1>
-            <p className="text-sm text-muted-foreground">
-              Bienvenue, {profile?.full_name || "Apprenant"}
-            </p>
-          </div>
-          <Button variant="outline" onClick={handleSignOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Déconnexion
-          </Button>
-        </div>
-      </header>
+      <DashboardHeader />
 
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6 md:grid-cols-3 mb-8">
