@@ -13,7 +13,7 @@ const StatsCards = ({ coursesInProgress, weekTime, totalPoints, currentStreak }:
     const stats = [
         {
             icon: BookOpen,
-            label: "Cours en cours",
+            label: "Modules en cours",
             value: coursesInProgress,
             color: "text-blue-600",
             bgColor: "bg-blue-50",
