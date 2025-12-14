@@ -1,6 +1,8 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Calendar } from "@/components/ui/calendar";
 import * as React from "react";
+import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,10 +15,17 @@ const CalendarPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const startParam = searchParams.get("start");
   const endParam = searchParams.get("end");
-  const range = React.useMemo(() => {
+
+  const [date, setDate] = React.useState<DateRange | undefined>(() => {
     const from = startParam ? new Date(`${startParam}T00:00:00`) : undefined;
     const to = endParam ? new Date(`${endParam}T00:00:00`) : undefined;
-    return { from, to };
+    return from ? { from, to: to || from } : undefined;
+  });
+
+  React.useEffect(() => {
+    const from = startParam ? new Date(`${startParam}T00:00:00`) : undefined;
+    const to = endParam ? new Date(`${endParam}T00:00:00`) : undefined;
+    setDate(from ? { from, to: to || from } : undefined);
   }, [startParam, endParam]);
 
   const { data: courses } = useQuery({
@@ -105,12 +114,14 @@ const CalendarPage = () => {
           <CardContent>
             <Calendar
               mode="range"
-              selected={range}
-              onSelect={(sel) => {
-                if (sel?.from && sel?.to) {
-                  const start = sel.from.toISOString().slice(0, 10);
-                  const end = sel.to.toISOString().slice(0, 10);
-                  setSearchParams({ start, end });
+              selected={date}
+              onSelect={(newDate) => {
+                setDate(newDate);
+                if (newDate?.from && newDate?.to) {
+                  setSearchParams({
+                    start: format(newDate.from, "yyyy-MM-dd"),
+                    end: format(newDate.to, "yyyy-MM-dd")
+                  });
                 }
               }}
               numberOfMonths={1}
