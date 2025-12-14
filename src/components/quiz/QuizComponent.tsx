@@ -58,10 +58,17 @@ const QuizComponent = ({
     }
 
     const timer = setInterval(() => {
-      setTimeRemaining((prev) => (prev !== null ? prev - 1 : null));
+      setTimeRemaining((prev) => {
+        if (prev === null || prev <= 1) {
+          handleSubmit();
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRemaining]);
 
   const handleAnswerSelect = (questionId: string, answer: string) => {
@@ -94,11 +101,14 @@ const QuizComponent = ({
   };
 
   const handleSubmit = async () => {
+    if (showResults) return; // Prevent double submission
+    
     const finalScore = calculateScore();
     setScore(finalScore);
     setShowResults(true);
 
     const passed = finalScore >= quiz.passing_score;
+    const timeUsed = timeLimit ? timeLimit * 60 - (timeRemaining || 0) : null;
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -113,10 +123,17 @@ const QuizComponent = ({
       });
 
       if (passed) {
-        toast.success(`Félicitations! Score: ${finalScore}%`);
+        toast.success(
+          isFinalEvaluation
+            ? `Félicitations! Vous avez réussi l'évaluation finale avec ${finalScore}%`
+            : `Félicitations! Score: ${finalScore}%`
+        );
         onComplete(true);
       } else {
-        toast.error(`Score insuffisant: ${finalScore}% (minimum: ${quiz.passing_score}%)`);
+        const message = isFinalEvaluation
+          ? `Évaluation non réussie: ${finalScore}% (minimum: ${quiz.passing_score}%). Vous pouvez réessayer.`
+          : `Score insuffisant: ${finalScore}% (minimum: ${quiz.passing_score}%)`;
+        toast.error(message);
         onComplete(false);
       }
     } catch (error: any) {
@@ -136,41 +153,77 @@ const QuizComponent = ({
 
   if (showResults) {
     const passed = score >= quiz.passing_score;
+    const correctAnswers = Math.round((score / 100) * questions.length);
+    
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             {passed ? (
               <>
-                <CheckCircle className="w-6 h-6 text-success" />
-                Quiz réussi!
+                <CheckCircle className="w-6 h-6 text-green-600" />
+                {isFinalEvaluation ? "Évaluation finale réussie!" : "Quiz réussi!"}
               </>
             ) : (
               <>
                 <XCircle className="w-6 h-6 text-destructive" />
-                Quiz non réussi
+                {isFinalEvaluation ? "Évaluation finale non réussie" : "Quiz non réussi"}
               </>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center space-y-4">
-            <div className="text-5xl font-bold text-primary">{score}%</div>
+            <div className={`text-5xl font-bold ${passed ? "text-green-600" : "text-destructive"}`}>
+              {score}%
+            </div>
             <p className="text-muted-foreground">
               Score minimum requis: {quiz.passing_score}%
             </p>
+            <div className="space-y-2">
             <p>
               Vous avez répondu correctement à{" "}
-              <strong>{Math.round((score / 100) * questions.length)}</strong> questions sur{" "}
+                <strong>{correctAnswers}</strong> question{correctAnswers > 1 ? "s" : ""} sur{" "}
               <strong>{questions.length}</strong>
             </p>
-            {!passed && !isFinalEvaluation && (
-              <Alert>
+              {timeLimit && timeRemaining !== null && (
+                <p className="text-sm text-muted-foreground">
+                  Temps utilisé: {formatTime(timeLimit * 60 - (timeRemaining || 0))} / {formatTime(timeLimit * 60)}
+                </p>
+              )}
+            </div>
+            {!passed && (
+              <Alert variant={isFinalEvaluation ? "destructive" : "default"}>
                 <AlertDescription>
-                  Vous pouvez réessayer le quiz pour améliorer votre score.
+                  {isFinalEvaluation
+                    ? "Vous devez obtenir au moins " + quiz.passing_score + "% pour réussir l'évaluation finale. Vous pouvez réessayer."
+                    : "Vous pouvez réessayer le quiz pour améliorer votre score."}
                 </AlertDescription>
               </Alert>
             )}
+            {passed && isFinalEvaluation && (
+              <Alert className="bg-green-50 border-green-200">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  Félicitations! Vous avez réussi l'évaluation finale. Vous pouvez maintenant obtenir votre certificat.
+                </AlertDescription>
+              </Alert>
+            )}
+            <div className="flex gap-2 justify-center pt-4">
+              {!passed && (
+                <Button variant="outline" onClick={() => {
+                  setShowResults(false);
+                  setCurrentQuestionIndex(0);
+                  setAnswers({});
+                  setTimeRemaining(timeLimit ? timeLimit * 60 : null);
+                }}>
+                  Réessayer
+                </Button>
+              )}
+              <Button onClick={() => onComplete(passed)}>
+                {passed ? "Continuer" : "Fermer"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -181,9 +234,19 @@ const QuizComponent = ({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between mb-2">
-          <CardTitle>{quiz.title}</CardTitle>
+          <CardTitle>
+            {isFinalEvaluation && "🎯 "}
+            {quiz.title}
+            {isFinalEvaluation && " - Évaluation finale"}
+          </CardTitle>
           {timeRemaining !== null && (
-            <div className={`flex items-center gap-2 ${timeRemaining < 60 ? "text-destructive" : ""}`}>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-lg ${
+              timeRemaining < 60 
+                ? "bg-destructive text-destructive-foreground animate-pulse" 
+                : timeRemaining < 300
+                ? "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200"
+                : "bg-muted"
+            }`}>
               <Clock className="w-4 h-4" />
               <span className="font-mono font-bold">{formatTime(timeRemaining)}</span>
             </div>
@@ -227,18 +290,23 @@ const QuizComponent = ({
           </Button>
 
           <div className="flex gap-2">
+            {!isFinalEvaluation && (
             <Button variant="ghost" onClick={onCancel}>
               Annuler
             </Button>
+            )}
             {currentQuestionIndex === questions.length - 1 ? (
               <Button
                 onClick={handleSubmit}
-                disabled={!allQuestionsAnswered}
+                disabled={!allQuestionsAnswered || showResults}
+                className={isFinalEvaluation ? "w-full" : ""}
               >
-                Terminer le quiz
+                {isFinalEvaluation ? "Soumettre l'évaluation finale" : "Terminer le quiz"}
               </Button>
             ) : (
-              <Button onClick={handleNext}>Suivant</Button>
+              <Button onClick={handleNext} className={isFinalEvaluation ? "w-full" : ""}>
+                Suivant
+              </Button>
             )}
           </div>
         </div>
@@ -247,6 +315,14 @@ const QuizComponent = ({
           <Alert>
             <AlertDescription>
               Veuillez répondre à toutes les questions avant de soumettre.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isFinalEvaluation && (
+          <Alert className="mt-4 border-orange-200 bg-orange-50 dark:bg-orange-950">
+            <AlertDescription className="text-orange-800 dark:text-orange-200">
+              <strong>Évaluation finale:</strong> Cette évaluation est chronométrée. Assurez-vous de répondre à toutes les questions avant la fin du temps imparti.
             </AlertDescription>
           </Alert>
         )}

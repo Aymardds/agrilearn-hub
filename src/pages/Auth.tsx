@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Leaf } from "lucide-react";
 
@@ -15,6 +17,19 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+
+  const { data: categories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,6 +54,10 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!categoryId) {
+      toast.error("Veuillez choisir une filière");
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -48,8 +67,9 @@ const Auth = () => {
         options: {
           data: {
             full_name: fullName,
+            category_id: categoryId,
           },
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/auth`,
         },
       });
 
@@ -62,6 +82,37 @@ const Auth = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token")) {
+      const params = new URLSearchParams(hash.slice(1));
+      const type = params.get("type");
+      const access_token = params.get("access_token") || "";
+      const refresh_token = params.get("refresh_token") || "";
+      if (params.get("error_code")) {
+        toast.error("Lien de confirmation invalide ou expiré.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+        navigate("/auth");
+        return;
+      }
+      if (access_token && refresh_token) {
+        supabase.auth.setSession({ access_token, refresh_token })
+          .then(({ error }) => {
+            if (error) {
+              toast.error("Impossible de vous connecter automatiquement.");
+              navigate("/auth");
+            } else {
+              toast.success("Email confirmé, connexion automatique réussie.");
+              navigate("/dashboard");
+            }
+          });
+      } else {
+        navigate("/auth");
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-hero p-4">
@@ -132,6 +183,21 @@ const Auth = () => {
                     onChange={(e) => setFullName(e.target.value)}
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-category">Filière</Label>
+                  <Select value={categoryId} onValueChange={setCategoryId} required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choisir une filière" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories?.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>

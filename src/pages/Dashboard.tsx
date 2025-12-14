@@ -6,6 +6,9 @@ import { Loader2 } from "lucide-react";
 import ApprenantDashboard from "@/components/dashboard/ApprenantDashboard";
 import FormateurDashboard from "@/components/dashboard/FormateurDashboard";
 import SuperAdminDashboard from "@/components/dashboard/SuperAdminDashboard";
+import SupervisorDashboard from "@/components/dashboard/SupervisorDashboard";
+import EditorDashboard from "@/components/dashboard/EditorDashboard";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Enums } from "@/integrations/supabase/types";
 
 const Dashboard = () => {
@@ -16,6 +19,21 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes("access_token")) {
+      const params = new URLSearchParams(hash.slice(1));
+      const access_token = params.get("access_token") || "";
+      const refresh_token = params.get("refresh_token") || "";
+      if (access_token && refresh_token) {
+        supabase.auth.setSession({ access_token, refresh_token })
+          .then(() => {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          });
+      } else {
+        navigate("/auth");
+      }
+      return;
+    }
     // Set up auth state listener
     const {
       data: { subscription },
@@ -73,15 +91,49 @@ const Dashboard = () => {
   }
 
   const renderDashboard = () => {
-    switch (userRole) {
+    const role = (userRole || "").toLowerCase();
+    const normalized =
+      role === "éditeur" ? "editeur" :
+        role === "editor" ? "editeur" :
+          role;
+
+    switch (normalized) {
       case "apprenant":
-        return <ApprenantDashboard user={user} />;
+        return (
+          <DashboardLayout>
+            <ApprenantDashboard user={user} />
+          </DashboardLayout>
+        );
       case "formateur":
-        return <FormateurDashboard user={user} />;
+        return (
+          <DashboardLayout title="Tableau de bord formateur" description="Gérez vos cours et votre contenu pédagogique">
+            <FormateurDashboard user={user} />
+          </DashboardLayout>
+        );
       case "superadmin":
-        return <SuperAdminDashboard user={user} />;
+        return (
+          <DashboardLayout title="Administration" description="Gestion complète de la plateforme">
+            <SuperAdminDashboard user={user} />
+          </DashboardLayout>
+        );
+      case "superviseur":
+        return (
+          <DashboardLayout title="Supervision" description="Supervision des cours et formateurs">
+            <SupervisorDashboard user={user} />
+          </DashboardLayout>
+        );
+      case "editeur":
+        return (
+          <DashboardLayout title="Édition" description="Gestion du contenu">
+            <EditorDashboard user={user} />
+          </DashboardLayout>
+        );
       default:
-        return <ApprenantDashboard user={user} />;
+        return (
+          <DashboardLayout>
+            <ApprenantDashboard user={user} />
+          </DashboardLayout>
+        );
     }
   };
 
@@ -89,3 +141,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
