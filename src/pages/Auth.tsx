@@ -9,7 +9,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Leaf } from "lucide-react";
+import { Loader2, Leaf, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ForgotPasswordDialog } from "@/components/auth/ForgotPasswordDialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -18,6 +20,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -36,12 +39,20 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        // Messages d'erreur plus explicites
+        if (error.message.includes("Invalid login credentials")) {
+          throw new Error("Email ou mot de passe incorrect");
+        } else if (error.message.includes("Email not confirmed")) {
+          throw new Error("Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.");
+        }
+        throw error;
+      }
 
       toast.success("Connexion réussie!");
       navigate("/dashboard");
@@ -61,7 +72,7 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -75,9 +86,23 @@ const Auth = () => {
 
       if (error) throw error;
 
-      toast.success("Compte créé! Vérifiez votre email.");
+      // Vérifier si l'email existe déjà
+      if (data?.user && !data?.session) {
+        setShowConfirmation(true);
+        toast.success("Inscription réussie!", {
+          description: "Vérifiez votre email pour confirmer votre compte.",
+        });
+      } else if (data?.session) {
+        // Auto-confirmation activée (mode développement)
+        toast.success("Compte créé et confirmé!");
+        navigate("/dashboard");
+      }
     } catch (error: any) {
-      toast.error(error.message || "Erreur lors de l'inscription");
+      if (error.message.includes("User already registered")) {
+        toast.error("Cet email est déjà utilisé. Essayez de vous connecter ou de réinitialiser votre mot de passe.");
+      } else {
+        toast.error(error.message || "Erreur lors de l'inscription");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -90,27 +115,39 @@ const Auth = () => {
       const type = params.get("type");
       const access_token = params.get("access_token") || "";
       const refresh_token = params.get("refresh_token") || "";
+
+      // Gérer les erreurs
       if (params.get("error_code")) {
-        toast.error("Lien de confirmation invalide ou expiré.");
+        const errorDescription = params.get("error_description") || "Lien invalide ou expiré";
+        toast.error(decodeURIComponent(errorDescription));
         window.history.replaceState({}, document.title, window.location.pathname);
         navigate("/auth");
         return;
       }
-      if (access_token && refresh_token) {
+
+      // Rediriger vers la page de réinitialisation si c'est un token de recovery
+      if (type === "recovery") {
+        // Le token sera géré par la page ResetPassword
+        navigate("/reset-password" + hash);
+        return;
+      }
+
+      // Gérer la confirmation d'email
+      if (access_token && refresh_token && type === "signup") {
         supabase.auth.setSession({ access_token, refresh_token })
           .then(({ error }) => {
             if (error) {
               toast.error("Impossible de vous connecter automatiquement.");
               navigate("/auth");
             } else {
-              toast.success("Email confirmé, connexion automatique réussie.");
+              toast.success("Email confirmé avec succès!", {
+                description: "Bienvenue sur E-GrainoLab!",
+              });
               navigate("/dashboard");
             }
           });
-      } else {
-        navigate("/auth");
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
-      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [navigate]);
 
@@ -157,6 +194,9 @@ const Auth = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
+                </div>
+                <div className="flex items-center justify-end">
+                  <ForgotPasswordDialog />
                 </div>
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (
@@ -232,6 +272,21 @@ const Auth = () => {
                   )}
                 </Button>
               </form>
+
+              {showConfirmation && (
+                <Alert className="mt-4">
+                  <Mail className="h-4 w-4" />
+                  <AlertTitle>Vérifiez votre email</AlertTitle>
+                  <AlertDescription>
+                    Un email de confirmation a été envoyé à <strong>{email}</strong>.
+                    Cliquez sur le lien dans l'email pour activer votre compte.
+                    <br />
+                    <span className="text-xs text-muted-foreground mt-2 block">
+                      Vous n'avez pas reçu l'email ? Vérifiez vos spams ou réessayez dans quelques minutes.
+                    </span>
+                  </AlertDescription>
+                </Alert>
+              )}
             </TabsContent>
           </Tabs>
         </CardContent>

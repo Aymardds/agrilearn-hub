@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import AppShell from "@/components/layout/AppShell";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Courses from "./pages/Courses";
 import CourseDetail from "./pages/CourseDetail";
@@ -34,6 +35,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route element={<ShellLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<CalendarPage />} />
