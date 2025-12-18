@@ -524,6 +524,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_password_reset_rate_limit: {
+        Args: {
+          user_email: string
+        }
+        Returns: boolean
+      }
+      log_password_reset_attempt: {
+        Args: {
+          p_email: string
+        }
+        Returns: void
+      }
     }
     Enums: {
       app_role: "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur"

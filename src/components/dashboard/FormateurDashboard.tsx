@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { BookOpen, Users, CheckCircle, Settings, Plus, Edit, Eye } from "lucide-react";
+import { BookOpen, Users, CheckCircle, Settings, Plus, Edit, Eye, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import CourseStructureDialog from "@/components/courses/CourseStructureDialog";
 
 interface FormateurDashboardProps {
   user: User;
@@ -23,6 +24,7 @@ const FormateurDashboard = ({ user }: FormateurDashboardProps) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const canCreateCourse = false;
   const [isEditProfileDialogOpen, setIsEditProfileDialogOpen] = useState(false);
+  const [selectedCourseForStructure, setSelectedCourseForStructure] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -381,10 +383,10 @@ const FormateurDashboard = ({ user }: FormateurDashboardProps) => {
                         variant="outline"
                         size="sm"
                         className="flex-1"
-                        onClick={() => navigate("/admin/courses")}
+                        onClick={() => setSelectedCourseForStructure(course)}
                       >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Modifier
+                        <Layers className="w-3 h-3 mr-1" />
+                        Gérer contenu
                       </Button>
                     </div>
                   </CardContent>
@@ -507,6 +509,16 @@ const FormateurDashboard = ({ user }: FormateurDashboardProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {selectedCourseForStructure && (
+        <CourseStructureDialog
+          courseId={selectedCourseForStructure.id}
+          courseTitle={selectedCourseForStructure.title}
+          open={!!selectedCourseForStructure}
+          onOpenChange={(open) => !open && setSelectedCourseForStructure(null)}
+          userRole="formateur"
+        />
+      )}
     </main>
   );
 };

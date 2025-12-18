@@ -30,13 +30,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit, Trash2, Search, BookOpen } from "lucide-react";
+import { Plus, Edit, Trash2, Search, BookOpen, Check, X } from "lucide-react";
 import { toast } from "sonner";
 // header fourni par AppShell
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Calendar } from "@/components/ui/calendar";
 import * as React from "react";
 import InstructorAssignmentHistory from "@/components/courses/InstructorAssignmentHistory";
+import CourseStructureDialog from "@/components/courses/CourseStructureDialog";
 
 const CoursesManagement = () => {
   const navigate = useNavigate();
@@ -654,6 +655,57 @@ const CoursesManagement = () => {
     onError: (e: any) => toast.error("Erreur mise à jour leçon: " + e.message),
   });
 
+  const approveMutation = useMutation({
+    mutationFn: async (courseId: string) => {
+      const { error } = await supabase
+        .from("courses")
+        .update({
+          review_status: 'approved',
+          is_approved: true,
+          is_published: true
+        } as any)
+        .eq("id", courseId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-courses"] });
+      toast.success("Cours approuvé !");
+    },
+    onError: (e: any) => toast.error("Erreur: " + e.message),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (payload: { id: string, reason: string }) => {
+      const { error } = await supabase
+        .from("courses")
+        .update({
+          review_status: 'rejected',
+          is_approved: false,
+          rejection_reason: payload.reason
+        } as any)
+        .eq("id", payload.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-courses"] });
+      toast.success("Cours rejeté.");
+    },
+    onError: (e: any) => toast.error("Erreur: " + e.message),
+  });
+
+  const handleApprove = (course: any) => {
+    if (confirm(`Approuver le cours "${course.title}" ?`)) {
+      approveMutation.mutate(course.id);
+    }
+  };
+
+  const handleReject = (course: any) => {
+    const reason = prompt("Raison du rejet :");
+    if (reason !== null) {
+      rejectMutation.mutate({ id: course.id, reason: reason || "Non spécifiée" });
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       title: "",
@@ -962,20 +1014,42 @@ const CoursesManagement = () => {
                         </TableCell>
                         <TableCell>{instructorMap[course.instructor_id]?.full_name || "N/A"}</TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
-                            {course.is_published && (
-                              <Badge variant="default">Publié</Badge>
-                            )}
-                            {course.is_approved && (
-                              <Badge variant="outline">Approuvé</Badge>
-                            )}
-                            {!course.is_published && !course.is_approved && (
-                              <Badge variant="secondary">Brouillon</Badge>
-                            )}
+                          <div className="flex gap-2 flex-wrap">
+                            {(course as any).review_status === 'published' && <Badge className="bg-green-600">Publié</Badge>}
+                            {(course as any).review_status === 'approved' && <Badge className="bg-blue-600">Approuvé</Badge>}
+                            {(course as any).review_status === 'pending' && <Badge className="bg-yellow-600">En attente</Badge>}
+                            {(course as any).review_status === 'rejected' && <Badge className="bg-red-600">Rejeté</Badge>}
+                            {(course as any).review_status === 'draft' && <Badge variant="secondary">Brouillon</Badge>}
+
+                            {/* Fallback old flags if status not set */}
+                            {!(course as any).review_status && course.is_published && <Badge variant="default">Publié</Badge>}
+                            {!(course as any).review_status && course.is_approved && <Badge variant="outline">Approuvé</Badge>}
+                            {!(course as any).review_status && !course.is_published && !course.is_approved && <Badge variant="secondary">Brouillon</Badge>}
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-2">
+                            {(userRole === 'superadmin' || userRole === 'superviseur') && (course as any).review_status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700 h-8 w-8 p-0"
+                                  title="Approuver"
+                                  onClick={() => handleApprove(course)}
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="h-8 w-8 p-0"
+                                  title="Rejeter"
+                                  onClick={() => handleReject(course)}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1192,268 +1266,17 @@ const CoursesManagement = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        <Dialog open={isStructureDialogOpen} onOpenChange={setIsStructureDialogOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Gérer le contenu du cours</DialogTitle>
-              <DialogDescription>
-                Ajouter des modules, des leçons, des quiz et définir l'évaluation finale
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <h3 className="font-semibold">Ajouter un module</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <Input placeholder="Titre" value={moduleForm.title} onChange={(e) => setModuleForm({ ...moduleForm, title: e.target.value })} />
-                  <Input placeholder="Description" value={moduleForm.description} onChange={(e) => setModuleForm({ ...moduleForm, description: e.target.value })} />
-                  <Input placeholder="Ordre" type="number" value={moduleForm.order_index} onChange={(e) => setModuleForm({ ...moduleForm, order_index: parseInt(e.target.value || "1", 10) })} />
-                </div>
-                <div className="flex justify-end">
-                  <Button onClick={() => createModuleMutation.mutate()} disabled={!moduleForm.title}>Ajouter le module</Button>
-                </div>
-                <div className="mt-6 space-y-2">
-                  <h3 className="font-semibold">Ajout en masse de modules avec quiz</h3>
-                  <div className="grid grid-cols-4 gap-3">
-                    <Input placeholder="Base du titre (ex: Module)" value={bulkModuleBaseTitle} onChange={(e) => setBulkModuleBaseTitle(e.target.value)} />
-                    <Input placeholder="Nombre" type="number" value={bulkModuleCount} onChange={(e) => setBulkModuleCount(parseInt(e.target.value || "1", 10))} />
-                    <Input placeholder="Score minimum du quiz" type="number" value={bulkQuizPassingScore} onChange={(e) => setBulkQuizPassingScore(parseInt(e.target.value || "70", 10))} />
-                    <Button onClick={() => createBulkModulesMutation.mutate()} disabled={!bulkModuleBaseTitle || bulkModuleCount < 1}>Créer</Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Crée N modules pour ce cours. Pour chaque module: ajoute une leçon "Évaluation" et un quiz avec le score minimum indiqué.</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="font-semibold">Modules</h3>
-                {structureData?.modules?.length ? (
-                  <div className="space-y-4">
-                    {structureData.modules.map((m: any, mi: number) => (
-                      <Card key={m.id}>
-                        <CardHeader>
-                          <CardTitle>Module {mi + 1}: {m.title}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                          {/* 1. Direct Lessons (Introduction) */}
-                          <div>
-                            <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Introduction & Leçons Directes</h4>
-                            <div className="space-y-2">
-                              {(m.lessons || []).filter((l: any) => !l.chapter_id).sort((a: any, b: any) => a.order_index - b.order_index).map((l: any, li: number) => (
-                                <div key={l.id} className="p-3 border rounded bg-background">
-                                  <div className="flex items-center justify-between">
-                                    <div className="font-medium flex items-center gap-2">
-                                      <span className="text-muted-foreground text-sm">#{li + 1}</span>
-                                      {l.title}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Badge variant="outline">{l.lesson_type}</Badge>
-                                      <Button variant="ghost" size="sm" onClick={() => { setSelectedLesson(l); setIsLessonDialogOpen(true); }}>
-                                        <Edit className="w-4 h-4" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                              {!(m.lessons || []).some((l: any) => !l.chapter_id) && <p className="text-sm text-muted-foreground italic pl-2">Aucune leçon directe.</p>}
-                            </div>
-                          </div>
-
-                          {/* 2. Chapters */}
-                          <div>
-                            <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Chapitres</h4>
-                            <div className="space-y-4">
-                              {(m.chapters || []).sort((a: any, b: any) => a.order_index - b.order_index).map((c: any, ci: number) => (
-                                <div key={c.id} className="border rounded-lg p-4 bg-muted/10">
-                                  <div className="font-semibold text-lg mb-4 flex items-center gap-2">
-                                    <span className="bg-primary/10 text-primary w-6 h-6 rounded-full flex items-center justify-center text-xs">{ci + 1}</span>
-                                    {c.title}
-                                  </div>
-                                  <div className="space-y-2 pl-2">
-                                    {(c.lessons || []).sort((a: any, b: any) => a.order_index - b.order_index).map((l: any, li: number) => (
-                                      <div key={l.id} className="p-3 border rounded bg-background">
-                                        <div className="flex items-center justify-between">
-                                          <div className="font-medium flex items-center gap-2">
-                                            <span className="text-muted-foreground text-sm">{li + 1}.</span>
-                                            {l.title}
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                            <Badge variant="outline">{l.lesson_type}</Badge>
-                                            <Button variant="ghost" size="sm" onClick={() => { setSelectedLesson(l); setIsLessonDialogOpen(true); }}>
-                                              <Edit className="w-4 h-4" />
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ))}
-                                    {!(c.lessons || []).length && <p className="text-sm text-muted-foreground italic">Aucune leçon dans ce chapitre.</p>}
-                                  </div>
-                                </div>
-                              ))}
-                              {!(m.chapters || []).length && <p className="text-sm text-muted-foreground italic pl-2">Aucun chapitre.</p>}
-                            </div>
-                          </div>
-
-                          {/* 3. Add Content Area */}
-                          <div className="border-t pt-4 bg-muted/20 p-4 rounded-lg mt-6">
-                            <h4 className="font-medium mb-4">Ajouter du contenu au module</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                              {/* Add Chapter Form */}
-                              <div className="space-y-3 p-3 border rounded bg-background">
-                                <h5 className="text-sm font-medium flex items-center gap-2"><Plus className="w-4 h-4" /> Nouveau Chapitre</h5>
-                                <Input placeholder="Titre du chapitre" value={chapterForm.title} onChange={(e) => setChapterForm({ ...chapterForm, title: e.target.value })} />
-                                <Input placeholder="Description (optionnel)" value={chapterForm.description} onChange={(e) => setChapterForm({ ...chapterForm, description: e.target.value })} />
-                                <Button size="sm" onClick={() => createChapterMutation.mutate(m.id)} disabled={!chapterForm.title} className="w-full">Ajouter Chapitre</Button>
-                              </div>
-
-                              {/* Add Lesson Form */}
-                              <div className="space-y-3 p-3 border rounded bg-background">
-                                <h5 className="text-sm font-medium flex items-center gap-2"><Plus className="w-4 h-4" /> Nouvelle Leçon</h5>
-                                <Input placeholder="Titre de la leçon" value={lessonForm.title} onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })} />
-                                <div className="grid grid-cols-2 gap-2">
-                                  <Select value={lessonForm.lesson_type} onValueChange={(v) => setLessonForm({ ...lessonForm, lesson_type: v })}>
-                                    <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="video">Vidéo</SelectItem>
-                                      <SelectItem value="document">Document</SelectItem>
-                                      <SelectItem value="text">Texte</SelectItem>
-                                      <SelectItem value="live">Live (Meet)</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                  <Select onValueChange={(v) => setLessonForm({ ...lessonForm, target_chapter_id: v === "root" ? null : v })}>
-                                    <SelectTrigger><SelectValue placeholder="Emplacement" /></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="root">Introduction / Racine</SelectItem>
-                                      {(m.chapters || []).map((c: any) => (
-                                        <SelectItem key={c.id} value={c.id}>Chapitre: {c.title}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-
-                                {lessonForm.lesson_type === "video" && <Input placeholder="URL vidéo" value={lessonForm.video_url} onChange={(e) => setLessonForm({ ...lessonForm, video_url: e.target.value })} />}
-                                {lessonForm.lesson_type === "document" && <Input placeholder="URL document" value={lessonForm.document_url} onChange={(e) => setLessonForm({ ...lessonForm, document_url: e.target.value })} />}
-                                {lessonForm.lesson_type === "live" && (
-                                  <div className="space-y-2">
-                                    <Input placeholder="Date (YYYY-MM-DD)" value={lessonForm.live_date} onChange={(e) => setLessonForm({ ...lessonForm, live_date: e.target.value })} />
-                                    <Input placeholder="Heure (HH:mm)" value={lessonForm.live_time} onChange={(e) => setLessonForm({ ...lessonForm, live_time: e.target.value })} />
-                                    <Input placeholder="Lien Meet" value={lessonForm.live_link} onChange={(e) => setLessonForm({ ...lessonForm, live_link: e.target.value })} />
-                                  </div>
-                                )}
-
-                                <Button size="sm" onClick={() => createLessonMutation.mutate({ moduleId: m.id, chapterId: lessonForm.target_chapter_id })} disabled={!lessonForm.title} className="w-full">Ajouter Leçon</Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground">Aucun module pour ce cours</div>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsStructureDialogOpen(false)}>Fermer</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isLessonDialogOpen} onOpenChange={setIsLessonDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Détails de la leçon</DialogTitle>
-              <DialogDescription>Visualiser les métadonnées et le contenu de la leçon</DialogDescription>
-            </DialogHeader>
-            {selectedLesson ? (
-              <div className="space-y-4">
-                {(() => {
-                  if (selectedLesson?.lesson_type !== "live") return null;
-                  try {
-                    const info = JSON.parse(selectedLesson.content || "{}");
-                    const d = typeof info.scheduled_date === "string" ? info.scheduled_date : "";
-                    const t = typeof info.scheduled_time === "string" ? info.scheduled_time : "";
-                    const l = typeof info.meeting_link === "string" ? info.meeting_link : (selectedLesson.video_url || "");
-                    const dur = typeof selectedLesson.duration_minutes === "number" ? selectedLesson.duration_minutes : 60;
-                    if (liveEdit.scheduled_date === "" && liveEdit.scheduled_time === "" && liveEdit.meeting_link === "") {
-                      setLiveEdit({ scheduled_date: d, scheduled_time: t, meeting_link: l, duration_minutes: dur });
-                    }
-                  } catch { }
-                  return null;
-                })()}
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Titre</div>
-                  <div className="font-medium">{selectedLesson.title}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Type</div>
-                    <div className="font-medium">{selectedLesson.lesson_type}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Durée (min)</div>
-                    <div className="font-medium">{selectedLesson.duration_minutes ?? "—"}</div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-sm text-muted-foreground">URL vidéo</div>
-                    <div className="break-all text-xs">{selectedLesson.video_url ?? "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">URL document</div>
-                    <div className="break-all text-xs">{selectedLesson.document_url ?? "—"}</div>
-                  </div>
-                </div>
-                {selectedLesson.lesson_type === "live" && (
-                  <div className="space-y-3 border rounded p-3">
-                    <div className="text-sm font-medium">Modifier la session live</div>
-                    <div className="grid grid-cols-4 gap-3">
-                      <Input placeholder="Date (YYYY-MM-DD)" value={liveEdit.scheduled_date} onChange={(e) => setLiveEdit({ ...liveEdit, scheduled_date: e.target.value })} />
-                      <Input placeholder="Heure (HH:mm)" value={liveEdit.scheduled_time} onChange={(e) => setLiveEdit({ ...liveEdit, scheduled_time: e.target.value })} />
-                      <Input placeholder="Lien visio" value={liveEdit.meeting_link} onChange={(e) => setLiveEdit({ ...liveEdit, meeting_link: e.target.value })} />
-                      <Input placeholder="Durée (min)" type="number" value={liveEdit.duration_minutes} onChange={(e) => setLiveEdit({ ...liveEdit, duration_minutes: parseInt(e.target.value || "60", 10) })} />
-                    </div>
-                    {(() => {
-                      const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(liveEdit.scheduled_date || "");
-                      const timeOk = /^\d{2}:\d{2}$/.test(liveEdit.scheduled_time || "");
-                      const linkOk = (liveEdit.meeting_link || "").startsWith("http");
-                      return (
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => updateLiveLessonMutation.mutate({ id: selectedLesson.id, scheduled_date: liveEdit.scheduled_date, scheduled_time: liveEdit.scheduled_time, meeting_link: liveEdit.meeting_link, duration_minutes: liveEdit.duration_minutes })}
-                            disabled={!dateOk || !timeOk || !linkOk}
-                          >
-                            Enregistrer
-                          </Button>
-                          <Button variant="outline" className="text-destructive" onClick={() => deleteLiveLessonMutation.mutate(selectedLesson.id)}>
-                            Annuler la session
-                          </Button>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-                {selectedLesson.content && (
-                  <div>
-                    <div className="text-sm text-muted-foreground">Contenu</div>
-                    <div className="p-3 border rounded text-sm whitespace-pre-wrap">{selectedLesson.content}</div>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={() => updateLessonStatusMutation.mutate({ id: selectedLesson.id, is_approved: true })}>Approuver</Button>
-                  <Button variant="default" onClick={() => updateLessonStatusMutation.mutate({ id: selectedLesson.id, is_published: true })}>Publier</Button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">Aucune leçon sélectionnée</div>
-            )}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsLessonDialogOpen(false)}>Fermer</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </main>
-    </div>
+        {structureCourse && (
+          <CourseStructureDialog
+            courseId={structureCourse.id}
+            courseTitle={structureCourse.title}
+            open={isStructureDialogOpen}
+            onOpenChange={setIsStructureDialogOpen}
+            userRole={userRole}
+          />
+        )}
+    </main>
+    </div >
   );
 };
 

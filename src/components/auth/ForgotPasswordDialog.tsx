@@ -25,11 +25,27 @@ export const ForgotPasswordDialog = () => {
         setIsLoading(true);
 
         try {
+            // Vérifier la limite de tentatives
+            const { data: canProceed, error: limitError } = await supabase.rpc(
+                'check_password_reset_rate_limit',
+                { user_email: email }
+            );
+
+            if (limitError) throw limitError;
+
+            if (!canProceed) {
+                toast.error("Trop de tentatives. Veuillez attendre 15 minutes avant de réessayer.");
+                return;
+            }
+
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
                 redirectTo: `${window.location.origin}/reset-password`,
             });
 
             if (error) throw error;
+
+            // Enregistrer la tentative pour le rate limiting
+            await supabase.rpc('log_password_reset_attempt', { p_email: email });
 
             setEmailSent(true);
             toast.success("Email de réinitialisation envoyé! Vérifiez votre boîte de réception.");

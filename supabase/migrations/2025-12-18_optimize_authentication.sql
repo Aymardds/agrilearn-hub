@@ -76,6 +76,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Commentaire pour rappeler la configuration manuelle nécessaire
 COMMENT ON FUNCTION delete_unconfirmed_users() IS 'Nettoie les utilisateurs non confirmés après 7 jours. À exécuter via un cron job.';
 COMMENT ON FUNCTION cleanup_old_reset_attempts() IS 'Nettoie les anciennes tentatives de réinitialisation. À exécuter via un cron job.';
+
+-- Fonction pour enregistrer une tentative de réinitialisation
+CREATE OR REPLACE FUNCTION log_password_reset_attempt(p_email TEXT)
+RETURNS void AS $$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  -- Récupérer l'ID utilisateur
+  SELECT id INTO v_user_id FROM auth.users WHERE email = p_email;
+  
+  -- N'enregistrer que si l'utilisateur existe
+  IF v_user_id IS NOT NULL THEN
+    INSERT INTO password_reset_attempts (user_id, email)
+    VALUES (v_user_id, p_email);
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+

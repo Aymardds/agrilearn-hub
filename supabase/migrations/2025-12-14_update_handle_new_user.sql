@@ -12,6 +12,11 @@ BEGIN
     new.raw_user_meta_data->>'avatar_url',
     (new.raw_user_meta_data->>'category_id')::uuid
   );
+  
+  -- Assign default role 'apprenant'
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (new.id, 'apprenant');
+  
   RETURN new;
 END;
 $function$;

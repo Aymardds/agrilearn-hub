@@ -18,6 +18,10 @@ import CertificatesManagement from "./pages/admin/CertificatesManagement";
 import CertificateSettings from "./pages/admin/CertificateSettings";
 import NotFound from "./pages/NotFound";
 
+// Editor Pages
+import MyCourses from "./pages/editor/MyCourses";
+import CourseEditor from "./pages/editor/CourseEditor";
+
 const queryClient = new QueryClient();
 
 const ShellLayout = () => (
@@ -42,10 +46,17 @@ const App = () => (
             <Route path="/courses" element={<Courses />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
             <Route path="/courses/:courseId/lessons/:lessonId" element={<LessonView />} />
+
+            {/* Admin Routes */}
             <Route path="/admin/courses" element={<CoursesManagement />} />
             <Route path="/admin/users" element={<UsersManagement />} />
             <Route path="/admin/certificates" element={<CertificatesManagement />} />
             <Route path="/admin/certificate-settings" element={<CertificateSettings />} />
+
+            {/* Editor Routes */}
+            <Route path="/editor/my-courses" element={<MyCourses />} />
+            <Route path="/editor/courses/new" element={<CourseEditor />} />
+            <Route path="/editor/courses/:id/edit" element={<CourseEditor />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

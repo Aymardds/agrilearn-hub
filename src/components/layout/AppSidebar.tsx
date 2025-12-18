@@ -75,6 +75,18 @@ const AppSidebar = ({ userRole }: AppSidebarProps) => {
               </>
             )}
 
+            {/* Items pour Editeurs */}
+            {((userRole as unknown as string) === "editeur" || (userRole as unknown as string) === "editor") && (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname.startsWith("/editor/my-courses")}>
+                  <Link to="/editor/my-courses">
+                    <BookOpen className="size-4" />
+                    Mes Cours
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
+
             {/* Items pour Admins seulement */}
             {userRole === "superadmin" && (
               <SidebarMenuItem>
