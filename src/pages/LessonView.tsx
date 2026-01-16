@@ -13,6 +13,11 @@ import VideoPlayer from "@/components/lessons/VideoPlayer";
 import EmbeddedVideoPlayer from "@/components/lessons/EmbeddedVideoPlayer";
 import ProtectedPDFViewer from "@/components/lessons/ProtectedPDFViewer";
 import InteractiveContent from "@/components/lessons/InteractiveContent";
+import LessonSidebar from "@/components/lessons/LessonSidebar";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const LessonView = () => {
   const { courseId, lessonId } = useParams();
@@ -250,6 +255,40 @@ const LessonView = () => {
     }
   };
 
+  const { data: allProgress } = useQuery({
+    queryKey: ["all-lesson-progress", user?.id, lesson?.modules?.course_id],
+    queryFn: async () => {
+      if (!user || !lesson?.modules?.course_id) return [];
+
+      const { data: modulesData } = await supabase
+        .from("modules")
+        .select("id")
+        .eq("course_id", lesson.modules.course_id);
+
+      if (!modulesData) return [];
+      const moduleIds = modulesData.map(m => m.id);
+
+      const { data: lessonsInCourse } = await supabase
+        .from("lessons")
+        .select("id")
+        .in("module_id", moduleIds);
+
+      if (!lessonsInCourse) return [];
+
+      const { data, error } = await supabase
+        .from("lesson_progress")
+        .select("*")
+        .eq("user_id", user.id)
+        .in("lesson_id", lessonsInCourse.map(l => l.id));
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user && !!lesson?.modules?.course_id,
+  });
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
   if (!lesson) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background to-muted">
@@ -289,158 +328,233 @@ const LessonView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-muted">
+    <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-white">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:block w-80 h-full overflow-hidden shrink-0">
+        <LessonSidebar
+          courseStructure={courseStructure || []}
+          currentLessonId={lessonId}
+          courseId={courseId}
+          lessonProgress={allProgress || []}
+          courseTitle={lesson.modules?.courses?.title}
+        />
+      </aside>
 
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top Header */}
+        <header className="h-16 border-b flex items-center justify-between px-6 bg-white shrink-0">
+          <div className="flex items-center gap-4">
+            {/* Mobile Sidebar Trigger */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden">
+                  <Menu className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="p-0 w-80">
+                <LessonSidebar
+                  courseStructure={courseStructure || []}
+                  currentLessonId={lessonId}
+                  courseId={courseId}
+                  lessonProgress={allProgress || []}
+                  courseTitle={lesson.modules?.courses?.title}
+                />
+              </SheetContent>
+            </Sheet>
 
-      <main className="container mx-auto px-4 py-8">
-        <Button
-          variant="ghost"
-          onClick={() => navigate(`/courses/${courseId}`)}
-          className="mb-6"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Retour au cours
-        </Button>
+            <nav className="hidden sm:flex items-center gap-2 text-xs font-medium text-gray-400">
+              <span className="uppercase tracking-widest">{lesson.modules?.courses?.title}</span>
+              <span>/</span>
+              <span className="text-gray-600 line-clamp-1">{lesson.modules?.title}</span>
+            </nav>
+          </div>
 
-        {/* Lesson Header */}
-        <div className="mb-6">
-          <p className="text-sm text-muted-foreground mb-2">
-            {lesson.modules?.courses?.title} → {lesson.modules?.title}
-          </p>
-          <h1 className="text-4xl font-bold mb-4">{lesson.title}</h1>
-          {progress?.is_completed && (
-            <div className="flex items-center gap-2 text-success">
-              <CheckCircle className="w-5 h-5" />
-              <span className="font-medium">Leçon terminée</span>
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex flex-col items-end mr-4">
+              <span className="text-[10px] font-bold text-gray-400 uppercase">PROGRESSION</span>
+              <div className="flex items-center gap-2 w-32">
+                <Progress value={enrollment?.progress_percentage ?? 0} className="h-1 bg-gray-100" />
+                <span className="text-xs font-bold text-gray-700">{enrollment?.progress_percentage ?? 0}%</span>
+              </div>
             </div>
-          )}
-        </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/courses/${courseId}`)}
+              className="hidden sm:flex border-gray-200 text-gray-600 font-semibold"
+            >
+              Quitter le cours
+            </Button>
+          </div>
+        </header>
 
-        {showQuiz && quiz ? (
-          <QuizComponent
-            quiz={quiz}
-            onComplete={handleQuizComplete}
-            onCancel={() => setShowQuiz(false)}
-          />
-        ) : (
-          <>
-            <Card className="mb-6">
-              <CardContent className="pt-6">
-                {lesson.lesson_type === "live" && (
-                  <div className="mb-6 space-y-2">
-                    {(() => {
-                      let info: any = null;
-                      try { info = lesson.content ? JSON.parse(lesson.content) : null; } catch { }
-                      const when = info ? [info.scheduled_date, info.scheduled_time].filter(Boolean).join(" ") : null;
-                      return (
-                        <div className="p-4 rounded-lg border bg-muted/30">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Video className="w-4 h-4" />
-                            <span className="font-semibold">Session en visioconférence</span>
-                          </div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Clock className="w-3 h-3" />
-                            <span>{when || "Horaire à venir"}</span>
-                            {(() => {
-                              const start = info && info.scheduled_date && info.scheduled_time ? new Date(`${info.scheduled_date}T${info.scheduled_time}:00`) : null;
-                              const minutes = lesson.duration_minutes || 60;
-                              const end = start ? new Date(start.getTime() + minutes * 60000) : null;
-                              const now = new Date();
-                              const statusLabel = start && end ? (now < start ? "À venir" : now <= end ? "En cours" : "Terminé") : null;
-                              return statusLabel ? <span>• {statusLabel}</span> : null;
-                            })()}
-                          </div>
-                          {lesson.video_url && (
-                            <div className="mt-2">
-                              <a href={lesson.video_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 underline">
-                                <ExternalLink className="w-3 h-3" />
-                                Rejoindre la réunion
-                              </a>
+        {/* Lesson Content Scrollable */}
+        <div className="flex-1 overflow-y-auto bg-gray-50/50">
+          <div className="max-w-4xl mx-auto px-6 py-12">
+
+            {showQuiz && quiz ? (
+              <QuizComponent
+                quiz={quiz}
+                onComplete={handleQuizComplete}
+                onCancel={() => setShowQuiz(false)}
+              />
+            ) : (
+              <div className="space-y-8">
+                {/* Lesson Title & Info */}
+                <div className="space-y-4">
+                  <h1 className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight">
+                    {lesson.title}
+                  </h1>
+                  {progress?.is_completed && (
+                    <Badge variant="outline" className="bg-green-100 text-green-700 border-none px-3 py-1">
+                      <CheckCircle className="w-3 h-3 mr-2" />
+                      Terminé
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Content Card */}
+                <Card className="border-none shadow-sm overflow-hidden bg-white">
+                  <CardContent className="p-0 sm:p-4 lg:p-8">
+                    {lesson.lesson_type === "live" && (
+                      <div className="mb-8 overflow-hidden rounded-xl border border-blue-100 bg-[#F1F7FF]">
+                        <div className="p-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white">
+                              <Video className="w-5 h-5" />
                             </div>
-                          )}
+                            <div>
+                              <h3 className="font-bold text-[#002B49]">Session de visioconférence</h3>
+                              <p className="text-xs text-blue-600 font-semibold">COURS EN DIRECT</p>
+                            </div>
+                          </div>
+
+                          {(() => {
+                            let info: any = null;
+                            try { info = lesson.content ? JSON.parse(lesson.content) : null; } catch { }
+                            const when = info ? [info.scheduled_date, info.scheduled_time].filter(Boolean).join(" ") : null;
+                            return (
+                              <>
+                                <div className="flex items-center gap-6 text-sm text-gray-600 mb-6 font-medium">
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-blue-500" />
+                                    {when || "Horaire à venir"}
+                                  </div>
+                                  {(() => {
+                                    const start = info && info.scheduled_date && info.scheduled_time ? new Date(`${info.scheduled_date}T${info.scheduled_time}:00`) : null;
+                                    const minutes = lesson.duration_minutes || 60;
+                                    const end = start ? new Date(start.getTime() + minutes * 60000) : null;
+                                    const now = new Date();
+                                    const statusLabel = start && end ? (now < start ? "À venir" : now <= end ? "En cours" : "Terminé") : null;
+                                    return statusLabel ? <span>• {statusLabel}</span> : null;
+                                  })()}
+                                </div>
+                                {lesson.video_url && (
+                                  <Button asChild className="bg-blue-600 hover:bg-blue-700">
+                                    <a href={lesson.video_url} target="_blank" rel="noreferrer">
+                                      <ExternalLink className="w-4 h-4 mr-2" />
+                                      Rejoindre la réunion
+                                    </a>
+                                  </Button>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
-                      );
-                    })()}
-                  </div>
-                )}
-                {/* Video Player */}
-                {lesson.lesson_type === "video" && lesson.video_url && (
-                  <div className="mb-6">
-                    <EmbeddedVideoPlayer
-                      videoUrl={lesson.video_url}
-                      title={lesson.title}
-                      onTimeUpdate={(currentTime, duration) => {
-                        // Track video progress if needed
-                      }}
-                      onEnded={() => {
-                        toast.success("Vidéo terminée!");
-                      }}
-                    />
-                  </div>
-                )}
+                      </div>
+                    )}
 
-                {/* PDF Viewer */}
-                {lesson.lesson_type === "document" && lesson.document_url && user && (
-                  <div className="mb-6">
-                    <ProtectedPDFViewer
-                      pdfUrl={lesson.document_url}
-                      title={lesson.title}
-                      userId={user.id}
-                      lessonId={lessonId!}
-                    />
-                  </div>
-                )}
+                    {/* Media content */}
+                    {lesson.lesson_type === "video" && lesson.video_url && (
+                      <div className="mb-8 rounded-xl overflow-hidden shadow-lg border">
+                        <EmbeddedVideoPlayer
+                          videoUrl={lesson.video_url}
+                          title={lesson.title}
+                          onEnded={() => toast.success("Vidéo terminée!")}
+                        />
+                      </div>
+                    )}
 
-                {/* Text Content with Interactive Elements */}
-                {lesson.content && (
-                  <div className="mb-6">
-                    <InteractiveContent
-                      content={lesson.content}
-                      interactiveElements={[]}
-                    />
-                  </div>
-                )}
+                    {lesson.lesson_type === "document" && lesson.document_url && user && (
+                      <div className="mb-8 rounded-xl overflow-hidden shadow-lg border min-h-[600px]">
+                        <ProtectedPDFViewer
+                          pdfUrl={lesson.document_url}
+                          title={lesson.title}
+                          userId={user.id}
+                          lessonId={lessonId!}
+                        />
+                      </div>
+                    )}
 
-                {/* Navigation */}
-                <div className="flex items-center justify-between pt-6 border-t">
-                  <div>
+                    {/* Main content body */}
+                    {lesson.content && (
+                      <div className="prose prose-blue max-w-none text-gray-700 leading-relaxed font-inter">
+                        <InteractiveContent
+                          content={lesson.content}
+                          interactiveElements={[]}
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Bottom Navigation */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 py-12 border-t border-gray-100">
+                  <div className="w-full sm:w-auto">
                     {prevLesson && (
                       <Button
-                        variant="outline"
-                        onClick={() =>
-                          navigate(`/courses/${courseId}/lessons/${prevLesson.id}`)
-                        }
+                        variant="ghost"
+                        className="text-gray-500 hover:text-gray-900 group"
+                        onClick={() => navigate(`/courses/${courseId}/lessons/${prevLesson.id}`)}
                       >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Leçon précédente
+                        <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
+                        <div className="text-left">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">PRÉCÉDENT</p>
+                          <p className="font-bold text-sm line-clamp-1">{prevLesson.title}</p>
+                        </div>
                       </Button>
                     )}
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex items-center gap-4 w-full sm:w-auto">
                     {!progress?.is_completed && (
-                      <Button onClick={handleMarkComplete}>
-                        {quiz ? "Passer le quiz" : lesson.lesson_type === "live" ? "Marquer comme participé" : "Marquer comme terminé"}
+                      <Button
+                        size="lg"
+                        className="flex-1 sm:flex-none bg-[#002B49] hover:bg-[#001D31] text-white px-8 h-12 shadow-md"
+                        onClick={handleMarkComplete}
+                      >
+                        {quiz ? "Faire le quiz" : "Compléter cette leçon"}
                         <CheckCircle className="w-4 h-4 ml-2" />
                       </Button>
                     )}
+
                     {nextLesson && (
                       <Button
-                        onClick={() =>
-                          navigate(`/courses/${courseId}/lessons/${nextLesson.id}`)
-                        }
+                        size="lg"
+                        variant={progress?.is_completed ? "default" : "outline"}
+                        className={cn(
+                          "flex-1 sm:flex-none px-8 h-12 group transition-all",
+                          progress?.is_completed ? "bg-blue-600 hover:bg-blue-700" : "border-gray-200 text-gray-600"
+                        )}
+                        onClick={() => navigate(`/courses/${courseId}/lessons/${nextLesson.id}`)}
                       >
-                        Leçon suivante
-                        <ArrowRight className="w-4 h-4 ml-2" />
+                        <div className="text-right flex flex-col items-end">
+                          <p className={cn("text-[10px] font-bold uppercase tracking-widest", progress?.is_completed ? "text-blue-100" : "text-gray-400")}>SUIVANT</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-sm line-clamp-1">{nextLesson.title}</p>
+                            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                          </div>
+                        </div>
                       </Button>
                     )}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </main>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 
 interface CourseStructureDialogProps {
     courseId: string;
@@ -398,7 +399,11 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
                                                         <div className="space-y-3 p-3 border rounded bg-background">
                                                             <h5 className="text-sm font-medium flex items-center gap-2"><Plus className="w-4 h-4" /> Nouveau Chapitre</h5>
                                                             <Input placeholder="Titre" value={chapterForm.title} onChange={(e) => setChapterForm({ ...chapterForm, title: e.target.value })} className="h-8" />
-                                                            <Input placeholder="Description" value={chapterForm.description} onChange={(e) => setChapterForm({ ...chapterForm, description: e.target.value })} className="h-8" />
+                                                            <Label className="text-xs">Description du chapitre</Label>
+                                                            <RichTextEditor
+                                                                value={chapterForm.description || ""}
+                                                                onChange={(v) => setChapterForm({ ...chapterForm, description: v })}
+                                                            />
                                                             <Button size="sm" onClick={() => createChapterMutation.mutate(m.id)} disabled={!chapterForm.title} className="w-full h-8">Ajouter Chapitre</Button>
                                                         </div>
 
@@ -434,6 +439,15 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
                                                                     <Input placeholder="Date (YYYY-MM-DD)" value={lessonForm.live_date} onChange={(e) => setLessonForm({ ...lessonForm, live_date: e.target.value })} className="h-8" />
                                                                     <Input placeholder="Heure (HH:mm)" value={lessonForm.live_time} onChange={(e) => setLessonForm({ ...lessonForm, live_time: e.target.value })} className="h-8" />
                                                                     <Input placeholder="Lien Meet" value={lessonForm.live_link} onChange={(e) => setLessonForm({ ...lessonForm, live_link: e.target.value })} className="h-8" />
+                                                                </div>
+                                                            )}
+                                                            {lessonForm.lesson_type === "text" && (
+                                                                <div className="space-y-2">
+                                                                    <Label className="text-xs">Contenu de la leçon</Label>
+                                                                    <RichTextEditor
+                                                                        value={lessonForm.content || ""}
+                                                                        onChange={(v) => setLessonForm({ ...lessonForm, content: v })}
+                                                                    />
                                                                 </div>
                                                             )}
 
@@ -514,6 +528,31 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
                                             meeting_link: liveEdit.meeting_link || JSON.parse(selectedLesson.content || "{}").meeting_link,
                                             duration_minutes: liveEdit.duration_minutes
                                         })}>Mettre à jour Live</Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Text content editing */}
+                            {selectedLesson.lesson_type === "text" && (
+                                <div className="space-y-3 p-4 border rounded-md bg-muted/30">
+                                    <h4 className="font-medium flex items-center gap-2">Contenu de la leçon</h4>
+                                    <RichTextEditor
+                                        value={selectedLesson.content || ""}
+                                        onChange={(v) => setSelectedLesson({ ...selectedLesson, content: v })}
+                                    />
+                                    <div className="flex justify-end gap-2 mt-2">
+                                        <Button size="sm" onClick={async () => {
+                                            const { error } = await supabase
+                                                .from("lessons")
+                                                .update({ content: selectedLesson.content })
+                                                .eq("id", selectedLesson.id);
+                                            if (error) {
+                                                toast.error("Erreur lors de la mise à jour");
+                                            } else {
+                                                toast.success("Leçon mise à jour");
+                                                await refetchStructure();
+                                            }
+                                        }}>Mettre à jour le contenu</Button>
                                     </div>
                                 </div>
                             )}

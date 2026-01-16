@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Save, Send, Layers } from "lucide-react";
 import CourseStructureDialog from "@/components/courses/CourseStructureDialog";
 import { useQuery } from "@tanstack/react-query";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 
 const courseSchema = z.object({
     title: z.string().min(5, "Le titre doit contenir au moins 5 caractères"),
@@ -284,10 +285,9 @@ const CourseEditor = () => {
                                     <FormItem>
                                         <FormLabel>Description</FormLabel>
                                         <FormControl>
-                                            <Textarea
-                                                placeholder="Description détaillée du cours..."
-                                                className="min-h-[150px]"
-                                                {...field}
+                                            <RichTextEditor
+                                                value={field.value}
+                                                onChange={field.onChange}
                                             />
                                         </FormControl>
                                         <FormMessage />
