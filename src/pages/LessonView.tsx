@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, ArrowRight, CheckCircle, Video, Clock, ExternalLink } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle, Video, Clock, ExternalLink, FileText } from "lucide-react";
 import { toast } from "sonner";
 // header fourni par AppShell
 import QuizComponent from "@/components/quiz/QuizComponent";
@@ -128,19 +128,35 @@ const LessonView = () => {
         .order("order_index");
 
       if (error) throw error;
-      return data;
+
+      // Fetch quizzes associated with these modules
+      const moduleIds = data.map((m: any) => m.id);
+      const { data: moduleQuizzes } = await supabase
+        .from("quizzes")
+        .select("*")
+        .in("module_id", moduleIds);
+
+      const quizzesByModule: Record<string, any> = {};
+      (moduleQuizzes || []).forEach((q: any) => { quizzesByModule[q.module_id!] = q; });
+
+      return { modules: data, quizzesByModule } as any;
     },
     enabled: !!lesson?.modules?.course_id,
   });
 
   const flatLessons = useMemo(() => {
-    if (!courseStructure) return [];
+    if (!courseStructure?.modules) return [];
     const lessons: any[] = [];
-    const sortedModules = [...courseStructure].sort((a: any, b: any) => a.order_index - b.order_index);
+    const sortedModules = [...courseStructure.modules].sort((a: any, b: any) => a.order_index - b.order_index);
 
     for (const mod of sortedModules) {
-      const directLessons = (mod.lessons || []).filter((l: any) => !l.chapter_id).map((l: any) => ({ ...l, _type: 'lesson' }));
-      const chapters = (mod.chapters || []).map((c: any) => ({ ...c, _type: 'chapter' }));
+      const allLessons = mod.lessons || [];
+      const directLessons = allLessons.filter((l: any) => !l.chapter_id).map((l: any) => ({ ...l, _type: 'lesson' }));
+      const chapters = (mod.chapters || []).map((c: any) => ({
+        ...c,
+        _type: 'chapter',
+        lessons: allLessons.filter((l: any) => l.chapter_id === c.id)
+      }));
       const combined = [...directLessons, ...chapters].sort((a: any, b: any) => a.order_index - b.order_index);
 
       for (const item of combined) {
@@ -332,11 +348,12 @@ const LessonView = () => {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:block w-80 h-full overflow-hidden shrink-0">
         <LessonSidebar
-          courseStructure={courseStructure || []}
+          courseStructure={courseStructure?.modules || []}
           currentLessonId={lessonId}
           courseId={courseId}
           lessonProgress={allProgress || []}
           courseTitle={lesson.modules?.courses?.title}
+          quizzesByModule={courseStructure?.quizzesByModule}
         />
       </aside>
 
@@ -354,11 +371,12 @@ const LessonView = () => {
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-80">
                 <LessonSidebar
-                  courseStructure={courseStructure || []}
+                  courseStructure={courseStructure?.modules || []}
                   currentLessonId={lessonId}
                   courseId={courseId}
                   lessonProgress={allProgress || []}
                   courseTitle={lesson.modules?.courses?.title}
+                  quizzesByModule={courseStructure?.quizzesByModule}
                 />
               </SheetContent>
             </Sheet>
@@ -488,13 +506,21 @@ const LessonView = () => {
                     )}
 
                     {/* Main content body */}
-                    {lesson.content && (
+                    {lesson.content ? (
                       <div className="prose prose-blue max-w-none text-gray-700 leading-relaxed font-inter">
                         <InteractiveContent
                           content={lesson.content}
                           interactiveElements={[]}
                         />
                       </div>
+                    ) : (
+                      lesson.lesson_type === "text" && (
+                        <div className="py-12 text-center bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+                          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                          <p className="text-gray-500 font-medium">Cette leçon n'a pas encore de contenu textuel.</p>
+                          <p className="text-sm text-gray-400">Veuillez ajouter du contenu via l'éditeur.</p>
+                        </div>
+                      )
                     )}
                   </CardContent>
                 </Card>

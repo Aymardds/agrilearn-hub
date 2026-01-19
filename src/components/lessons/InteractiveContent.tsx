@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, BookOpen, CheckCircle, AlertCircle, Info } from "lucide-react";
+import { Lightbulb, BookOpen, CheckCircle, AlertCircle, Info, XCircle, RotateCcw, Settings } from "lucide-react";
 
 interface InteractiveContentProps {
   content: string;
@@ -17,19 +18,95 @@ interface InteractiveContentProps {
 const InteractiveContent = ({ content, interactiveElements = [] }: InteractiveContentProps) => {
   const [completedSections, setCompletedSections] = useState<Set<string>>(new Set());
 
-  const markSectionComplete = (sectionId: string) => {
-    setCompletedSections((prev) => new Set(prev).add(sectionId));
+  const processContent = (html: string) => {
+    if (!html || !html.trim()) return null;
+
+    // A more robust approach: Find paragraphs starting with emojis using regex
+    // We'll search for <p> tags that start with one of our markers
+    const markers = ["💡", "🚫", "🔁", "⚙️"];
+
+    // If no markers at all, just render everything as one block
+    const hasAnyMarker = markers.some(m => html.includes(m));
+    if (!hasAnyMarker) {
+      return (
+        <div
+          className="prose prose-lg max-w-none mb-4"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      );
+    }
+
+    // Split by paragraph but keep the tags to avoid losing non-p content
+    const parts = html.split(/(?=<p>)/g);
+
+    const renderedParts = parts.map((part, index) => {
+      const getHighlightConfig = (text: string) => {
+        const plainText = text.replace(/<[^>]*>/g, "").trim();
+        if (plainText.startsWith("💡")) return { type: "tip", icon: <Lightbulb className="w-5 h-5 text-yellow-500 mt-1" />, label: "Astuce", color: "border-l-yellow-500 bg-yellow-50/50", strip: "💡" };
+        if (plainText.startsWith("🚫")) return { type: "warning", icon: <XCircle className="w-5 h-5 text-red-500 mt-1" />, label: "À éviter", color: "border-l-red-500 bg-red-50/50", strip: "🚫" };
+        if (plainText.startsWith("🔁")) return { type: "practice", icon: <RotateCcw className="w-5 h-5 text-green-500 mt-1" />, label: "Bonnes pratiques", color: "border-l-green-500 bg-green-50/50", strip: "🔁" };
+        if (plainText.startsWith("⚙️")) return { type: "recommendation", icon: <Settings className="w-5 h-5 text-blue-500 mt-1" />, label: "Recommandation", color: "border-l-blue-500 bg-blue-50/50", strip: "⚙️" };
+        return null;
+      };
+
+      const config = getHighlightConfig(part);
+
+      if (config) {
+        // Remove the emoji from the display text
+        const displayText = part.replace(config.strip, "").trim();
+
+        return (
+          <Card key={`content-${index}`} className={cn("border-l-4 my-4", config.color)}>
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                {config.icon}
+                <div className="flex-1">
+                  <Badge variant="outline" className="mb-2 bg-background">
+                    {config.label}
+                  </Badge>
+                  <div
+                    className="text-sm prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: displayText }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      }
+
+      // If it's a non-empty part, render it as is
+      if (part.trim()) {
+        return (
+          <div
+            key={`content-${index}`}
+            className="prose prose-lg max-w-none mb-4"
+            dangerouslySetInnerHTML={{ __html: part }}
+          />
+        );
+      }
+      return null;
+    }).filter(Boolean);
+
+    // If for some reason we filtered everything out, show the original
+    if (renderedParts.length === 0) {
+      return (
+        <div
+          className="prose prose-lg max-w-none mb-4"
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      );
+    }
+
+    return renderedParts;
   };
 
   return (
     <div className="space-y-6">
       {/* Main Content */}
-      <Card>
-        <CardContent className="pt-6">
-          <div
-            className="prose prose-lg max-w-none"
-            dangerouslySetInnerHTML={{ __html: content }}
-          />
+      <Card className="border-none shadow-none bg-transparent">
+        <CardContent className="p-0">
+          {processContent(content)}
         </CardContent>
       </Card>
 
@@ -87,20 +164,29 @@ const InteractiveContent = ({ content, interactiveElements = [] }: InteractiveCo
             );
 
           case "highlight":
+            const getHighlightConfig = (type: string) => {
+              switch (type) {
+                case "tip": return { icon: <Lightbulb className="w-5 h-5 text-yellow-500 mt-1" />, label: "Astuce", color: "border-l-yellow-500 bg-yellow-50/50" };
+                case "warning": return { icon: <XCircle className="w-5 h-5 text-red-500 mt-1" />, label: "À éviter", color: "border-l-red-500 bg-red-50/50" };
+                case "practice": return { icon: <RotateCcw className="w-5 h-5 text-green-500 mt-1" />, label: "Bonnes pratiques", color: "border-l-green-500 bg-green-50/50" };
+                case "recommendation": return { icon: <Settings className="w-5 h-5 text-blue-500 mt-1" />, label: "Recommandation", color: "border-l-blue-500 bg-blue-50/50" };
+                default: return { icon: <Info className="w-5 h-5 text-blue-500 mt-1" />, label: "Information", color: "border-l-primary bg-primary/5" };
+              }
+            };
+            const config = getHighlightConfig(element.data.type);
             return (
-              <Card key={index} className="border-l-4 border-l-primary">
+              <Card key={index} className={cn("border-l-4", config.color)}>
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3">
-                    {element.data.type === "tip" && <Lightbulb className="w-5 h-5 text-yellow-500 mt-1" />}
-                    {element.data.type === "warning" && <AlertCircle className="w-5 h-5 text-orange-500 mt-1" />}
-                    {element.data.type === "info" && <Info className="w-5 h-5 text-blue-500 mt-1" />}
+                    {config.icon}
                     <div className="flex-1">
-                      <Badge variant="outline" className="mb-2">
-                        {element.data.type === "tip" && "Astuce"}
-                        {element.data.type === "warning" && "Attention"}
-                        {element.data.type === "info" && "Information"}
+                      <Badge variant="outline" className="mb-2 bg-background">
+                        {config.label}
                       </Badge>
-                      <p className="text-sm">{element.data.content}</p>
+                      <div
+                        className="text-sm prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: element.data.content }}
+                      />
                     </div>
                   </div>
                 </CardContent>

@@ -16,8 +16,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Award } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 
 interface CourseStructureDialogProps {
@@ -35,7 +36,7 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
     const [lessonForm, setLessonForm] = useState<any>({ title: "", lesson_type: "video", order_index: 1, duration_minutes: null, video_url: "", document_url: "", content: "", live_date: "", live_time: "", live_link: "", live_capacity: 100, target_chapter_id: null });
     const [liveEdit, setLiveEdit] = useState({ scheduled_date: "", scheduled_time: "", meeting_link: "", duration_minutes: 60, capacity: 100 });
     const [quizForm, setQuizForm] = useState<any>({ title: "", passing_score: 70 });
-    const [questionForm, setQuestionForm] = useState<any>({ question_text: "", options: [], correct_answer: "", order_index: 1 });
+    const [questionForm, setQuestionForm] = useState<any>({ question_text: "", options: ["", "", "", ""], correct_answer: "", order_index: 1 });
 
     // Bulk features
     const [bulkModuleCount, setBulkModuleCount] = useState<number>(1);
@@ -44,6 +45,8 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
 
     const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
     const [selectedLesson, setSelectedLesson] = useState<any>(null);
+    const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
+    const [isQuestionDialogOpen, setIsQuestionDialogOpen] = useState(false);
 
     const { data: structureData, refetch: refetchStructure } = useQuery({
         queryKey: ["course-structure", courseId],
@@ -56,19 +59,32 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
                 .order("order_index");
             if (modErr) throw modErr;
 
-            // Collect all lesson IDs from modules and chapters
+            // Collect all lesson IDs and module IDs
             const moduleLessonIds = modules.flatMap((m: any) => (m.lessons || []).map((l: any) => l.id));
             const chapterLessonIds = modules.flatMap((m: any) => (m.chapters || []).flatMap((c: any) => (c.lessons || []).map((l: any) => l.id)));
             const lessonIds = [...moduleLessonIds, ...chapterLessonIds];
+            const moduleIds = modules.map((m: any) => m.id);
+
             let quizzesByLesson: Record<string, any> = {};
+            let quizzesByModule: Record<string, any> = {};
+
             if (lessonIds.length > 0) {
-                const { data: quizzes } = await supabase
+                const { data: lessonQuizzes } = await supabase
                     .from("quizzes")
                     .select("*, quiz_questions(*)")
                     .in("lesson_id", lessonIds);
-                (quizzes || []).forEach((q: any) => { quizzesByLesson[q.lesson_id] = q; });
+                (lessonQuizzes || []).forEach((q: any) => { quizzesByLesson[q.lesson_id] = q; });
             }
-            return { modules, quizzesByLesson };
+
+            if (moduleIds.length > 0) {
+                const { data: moduleQuizzes } = await supabase
+                    .from("quizzes")
+                    .select("*, quiz_questions(*)")
+                    .in("module_id", moduleIds);
+                (moduleQuizzes || []).forEach((q: any) => { quizzesByModule[q.module_id!] = q; });
+            }
+
+            return { modules, quizzesByLesson, quizzesByModule };
         },
         enabled: !!courseId && open,
     });
@@ -232,6 +248,26 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
         onError: (e: any) => toast.error("Erreur leçon: " + e.message),
     });
 
+    const createModuleQuizMutation = useMutation({
+        mutationFn: async (moduleId: string) => {
+            if (!moduleId) throw new Error("Module non sélectionné");
+            const { error } = await supabase
+                .from("quizzes")
+                .insert({
+                    module_id: moduleId,
+                    title: quizForm.title || "Quiz du module",
+                    passing_score: quizForm.passing_score || 70,
+                });
+            if (error) throw error;
+        },
+        onSuccess: async () => {
+            await refetchStructure();
+            setQuizForm({ title: "", passing_score: 70 });
+            toast.success("Quiz de module ajouté");
+        },
+        onError: (e: any) => toast.error("Erreur quiz module: " + e.message),
+    });
+
     const updateLiveLessonMutation = useMutation({
         mutationFn: async (payload: { id: string; scheduled_date: string; scheduled_time: string; meeting_link: string; duration_minutes?: number }) => {
             const { id, scheduled_date, scheduled_time, meeting_link, duration_minutes } = payload;
@@ -288,6 +324,47 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
             toast.success("Statut mis à jour");
         },
         onError: (e: any) => toast.error("Erreur: " + e.message),
+    });
+
+    const createQuestionMutation = useMutation({
+        mutationFn: async (quizId: string) => {
+            const { data: existingQuestions } = await supabase
+                .from("quiz_questions")
+                .select("order_index")
+                .eq("quiz_id", quizId)
+                .order("order_index", { ascending: false })
+                .limit(1);
+
+            const nextOrder = (existingQuestions?.[0]?.order_index || 0) + 1;
+
+            const { error } = await supabase.from("quiz_questions").insert({
+                quiz_id: quizId,
+                question_text: questionForm.question_text,
+                options: questionForm.options.filter((o: string) => o.trim() !== ""),
+                correct_answer: questionForm.correct_answer,
+                order_index: nextOrder,
+                question_type: "multiple_choice"
+            });
+            if (error) throw error;
+        },
+        onSuccess: async () => {
+            await refetchStructure();
+            setQuestionForm({ question_text: "", options: ["", "", "", ""], correct_answer: "", order_index: 1 });
+            toast.success("Question ajoutée");
+        },
+        onError: (e: any) => toast.error("Erreur question: " + e.message),
+    });
+
+    const deleteQuestionMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase.from("quiz_questions").delete().eq("id", id);
+            if (error) throw error;
+        },
+        onSuccess: async () => {
+            await refetchStructure();
+            toast.success("Question supprimée");
+        },
+        onError: (e: any) => toast.error("Erreur suppression: " + e.message),
     });
 
     return (
@@ -347,6 +424,15 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <Badge variant="outline">{l.lesson_type}</Badge>
+                                                                    {structureData.quizzesByLesson?.[l.id] && (
+                                                                        <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => {
+                                                                            setEditingQuizId(structureData.quizzesByLesson[l.id].id);
+                                                                            setIsQuestionDialogOpen(true);
+                                                                        }}>
+                                                                            <Award className="w-4 h-4" />
+                                                                            Questions ({structureData.quizzesByLesson[l.id].quiz_questions?.length || 0})
+                                                                        </Button>
+                                                                    )}
                                                                     <Button variant="ghost" size="sm" onClick={() => { setSelectedLesson(l); setIsLessonDialogOpen(true); }}>
                                                                         <Edit className="w-4 h-4" />
                                                                     </Button>
@@ -391,7 +477,46 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
                                                     </div>
                                                 </div>
 
-                                                {/* 3. Add Content Forms */}
+                                                {/* 3. Module Quiz */}
+                                                <div>
+                                                    <h4 className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Quiz du Module</h4>
+                                                    <div className="space-y-2">
+                                                        {structureData.quizzesByModule?.[m.id] ? (
+                                                            <div className="p-3 border rounded bg-primary/5 border-primary/20 flex items-center justify-between">
+                                                                <div className="font-medium flex items-center gap-2">
+                                                                    <Award className="w-4 h-4 text-primary" />
+                                                                    {structureData.quizzesByModule[m.id].title}
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <Badge variant="outline">{structureData.quizzesByModule[m.id].passing_score}% min</Badge>
+                                                                    <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => {
+                                                                        setEditingQuizId(structureData.quizzesByModule[m.id].id);
+                                                                        setIsQuestionDialogOpen(true);
+                                                                    }}>
+                                                                        <Award className="w-4 h-4" />
+                                                                        Questions ({structureData.quizzesByModule[m.id].quiz_questions?.length || 0})
+                                                                    </Button>
+                                                                    <Button variant="ghost" size="sm" onClick={() => {
+                                                                        toast.info("Édition du titre/score du quiz à implémenter");
+                                                                    }}>
+                                                                        <Edit className="w-4 h-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-3 p-3 border rounded bg-background">
+                                                                <h5 className="text-sm font-medium flex items-center gap-2"><Plus className="w-4 h-4" /> Nouveau Quiz</h5>
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <Input placeholder="Titre du quiz" value={quizForm.title} onChange={(e) => setQuizForm({ ...quizForm, title: e.target.value })} className="h-8" />
+                                                                    <Input placeholder="Sore min %" type="number" value={quizForm.passing_score} onChange={(e) => setQuizForm({ ...quizForm, passing_score: parseInt(e.target.value || "70", 10) })} className="h-8" />
+                                                                </div>
+                                                                <Button size="sm" variant="secondary" onClick={() => createModuleQuizMutation.mutate(m.id)} disabled={!quizForm.title} className="w-full h-8">Ajouter Quiz au Module</Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* 4. Add Content Forms */}
                                                 <div className="border-t pt-4 bg-muted/20 p-4 rounded-lg mt-4">
                                                     <h4 className="font-medium mb-4 text-sm">Ajouter contenu au module "{m.title}"</h4>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -567,6 +692,140 @@ const CourseStructureDialog = ({ courseId, courseTitle, open, onOpenChange, user
                             )}
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+            {/* Quiz Questions Editor Dialog */}
+            <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    {(() => {
+                        // Find the quiz in our structure data
+                        const allQuizzes = [
+                            ...Object.values(structureData?.quizzesByLesson || {}),
+                            ...Object.values(structureData?.quizzesByModule || {})
+                        ];
+                        const editingQuiz = allQuizzes.find((q: any) => q.id === editingQuizId);
+
+                        return (
+                            <>
+                                <DialogHeader>
+                                    <DialogTitle>Gérer les questions : {editingQuiz?.title}</DialogTitle>
+                                    <DialogDescription>
+                                        Ajoutez, modifiez ou supprimez des questions pour ce quiz.
+                                    </DialogDescription>
+                                </DialogHeader>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Questions List */}
+                                    <div className="space-y-4">
+                                        <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Questions actuelles</h3>
+                                        <div className="space-y-3">
+                                            {editingQuiz?.quiz_questions?.length > 0 ? (
+                                                editingQuiz.quiz_questions.sort((a: any, b: any) => a.order_index - b.order_index).map((q: any) => (
+                                                    <div key={q.id} className="p-3 border rounded-lg bg-background group">
+                                                        <div className="flex justify-between items-start gap-2">
+                                                            <div className="font-medium text-sm">
+                                                                <span className="text-muted-foreground mr-1">#{q.order_index}</span>
+                                                                {q.question_text}
+                                                            </div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                onClick={() => deleteQuestionMutation.mutate(q.id)}
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                        <div className="mt-2 space-y-1">
+                                                            {Array.isArray(q.options) && q.options.map((opt: string, idx: number) => (
+                                                                <div key={idx} className={cn(
+                                                                    "text-xs p-1.5 rounded border",
+                                                                    opt === q.correct_answer ? "bg-green-50 border-green-200 text-green-700" : "bg-muted/50 border-transparent"
+                                                                )}>
+                                                                    {opt} {opt === q.correct_answer && "✓"}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-center py-8 border-2 border-dashed rounded-lg text-muted-foreground text-sm">
+                                                    Aucune question pour le moment.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Add Question Form */}
+                                    <div className="space-y-4 border rounded-xl p-4 bg-muted/20">
+                                        <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Ajouter une question</h3>
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label>Question</Label>
+                                                <Textarea
+                                                    placeholder="Ex: Quelle est la capitale de la France ?"
+                                                    value={questionForm.question_text}
+                                                    onChange={(e) => setQuestionForm({ ...questionForm, question_text: e.target.value })}
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Options (sélectionnez la bonne réponse)</Label>
+                                                <div className="space-y-2">
+                                                    {questionForm.options.map((option: string, index: number) => (
+                                                        <div key={index} className="flex gap-2 items-center">
+                                                            <Input
+                                                                placeholder={`Option ${index + 1}`}
+                                                                value={option}
+                                                                onChange={(e) => {
+                                                                    const newOptions = [...questionForm.options];
+                                                                    newOptions[index] = e.target.value;
+                                                                    setQuestionForm({ ...questionForm, options: newOptions });
+                                                                }}
+                                                                className={cn(option === questionForm.correct_answer && option !== "" && "border-green-500 bg-green-50")}
+                                                            />
+                                                            <Button
+                                                                size="sm"
+                                                                variant={option === questionForm.correct_answer && option !== "" ? "default" : "outline"}
+                                                                className={cn(option === questionForm.correct_answer && option !== "" ? "bg-green-600 hover:bg-green-700 text-white" : "")}
+                                                                onClick={() => setQuestionForm({ ...questionForm, correct_answer: option })}
+                                                                type="button"
+                                                                disabled={!option}
+                                                            >
+                                                                {option === questionForm.correct_answer && option !== "" ? "✓" : "Correcte"}
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="w-full h-8 mt-1 border-dashed border-2"
+                                                    onClick={() => setQuestionForm({ ...questionForm, options: [...questionForm.options, ""] })}
+                                                >
+                                                    <Plus className="w-4 h-4 mr-2" /> Ajouter une option
+                                                </Button>
+                                            </div>
+
+                                            <div className="pt-4 border-t">
+                                                <Button
+                                                    className="w-full"
+                                                    disabled={!editingQuiz || !questionForm.question_text || !questionForm.correct_answer || questionForm.options.filter((o: string) => o.trim() !== "").length < 2 || createQuestionMutation.isPending}
+                                                    onClick={() => createQuestionMutation.mutate(editingQuiz!.id)}
+                                                >
+                                                    <Plus className="w-4 h-4 mr-2" /> Ajouter la question au quiz
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        );
+                    })()}
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsQuestionDialogOpen(false)}>Fermer</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </>

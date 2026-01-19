@@ -4,19 +4,23 @@ import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import { Toggle } from "@/components/ui/toggle";
-import { 
-  Bold, 
-  Italic, 
-  Underline as UnderlineIcon, 
-  List, 
-  ListOrdered, 
-  Link as LinkIcon, 
+import {
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  List,
+  ListOrdered,
+  Link as LinkIcon,
   Image as ImageIcon,
   Heading1,
   Heading2,
   Quote,
   Undo,
-  Redo
+  Redo,
+  Lightbulb,
+  RotateCcw,
+  Settings,
+  AlertCircle
 } from "lucide-react";
 import { useEffect } from "react";
 
@@ -142,6 +146,18 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           <Quote className="h-4 w-4" />
         </Toggle>
         <div className="w-[1px] h-4 bg-border mx-1" />
+        <Toggle size="sm" onPressedChange={() => editor.chain().focus().insertContent("💡 <strong>Conseil :</strong> ").run()}>
+          <Lightbulb className="h-4 w-4 text-yellow-500" />
+        </Toggle>
+        <Toggle size="sm" onPressedChange={() => editor.chain().focus().insertContent("🚫 <strong>À éviter :</strong> ").run()}>
+          <AlertCircle className="h-4 w-4 text-red-500" />
+        </Toggle>
+        <Toggle size="sm" onPressedChange={() => editor.chain().focus().insertContent("🔁 <strong>Bonne pratique :</strong> ").run()}>
+          <RotateCcw className="h-4 w-4 text-green-500" />
+        </Toggle>
+        <Toggle size="sm" onPressedChange={() => editor.chain().focus().insertContent("⚙️ <strong>Recommandation :</strong> ").run()}>
+          <Settings className="h-4 w-4 text-blue-500" />
+        </Toggle>
         <Toggle size="sm" onPressedChange={setLink} pressed={editor.isActive("link")}>
           <LinkIcon className="h-4 w-4" />
         </Toggle>

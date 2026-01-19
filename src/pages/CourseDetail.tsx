@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, PlayCircle, FileText, CheckCircle, Lock, Award, Clock, Video } from "lucide-react";
+import { ArrowLeft, PlayCircle, FileText, CheckCircle, Lock, Award, Clock, Video, ChevronDown } from "lucide-react";
 import QuizComponent from "@/components/quiz/QuizComponent";
 import { toast } from "sonner";
 // header fourni par AppShell
@@ -82,6 +82,16 @@ const CourseDetail = () => {
             lesson_type,
             duration_minutes,
             order_index
+          ),
+          chapters(
+            *,
+            lessons(
+              id,
+              title,
+              lesson_type,
+              duration_minutes,
+              order_index
+            )
           )
         `)
         .eq("course_id", id)
@@ -195,7 +205,19 @@ const CourseDetail = () => {
           // Chercher tous les quiz associés aux leçons du module
           const lessonIds = module.lessons.map((l: any) => l.id);
 
-          const { data: quizzes } = await supabase
+          // Chercher le quiz directement associé au module
+          const { data: directModuleQuizzes } = await supabase
+            .from("quizzes")
+            .select(`
+              *,
+              quiz_questions(*)
+            `)
+            .eq("module_id", module.id);
+
+          const directModuleQuiz = directModuleQuizzes?.[0] || null;
+
+          // Chercher tous les quiz associés aux leçons du module (fallback/ancêtre)
+          const { data: lessonQuizzes } = await supabase
             .from("quizzes")
             .select(`
               *,
@@ -203,10 +225,10 @@ const CourseDetail = () => {
             `)
             .in("lesson_id", lessonIds);
 
-          // Le quiz principal du module (celui de la dernière leçon ou le premier trouvé)
+          // Le quiz principal du module est celui lié directement, ou sinon celui de la dernière leçon
           const sortedLessons = module.lessons.sort((a: any, b: any) => b.order_index - a.order_index);
           const lastLesson = sortedLessons[0];
-          const moduleQuiz = quizzes?.find(q => q.lesson_id === lastLesson.id) || quizzes?.[0] || null;
+          const moduleQuiz = directModuleQuiz || lessonQuizzes?.find(q => q.lesson_id === lastLesson.id) || lessonQuizzes?.[0] || null;
 
           // Vérifier la présence d'une séance "live" et sa complétion
           const moduleLessonIds = module.lessons.map((l: any) => l.id);
@@ -229,7 +251,7 @@ const CourseDetail = () => {
             moduleIndex: modules.indexOf(module),
             lessonsCount: module.lessons.length,
             completedLessonsCount: completedLessons.length,
-            allQuizzes: quizzes || [],
+            allQuizzes: [...(directModuleQuiz ? [directModuleQuiz] : []), ...(lessonQuizzes || [])],
           };
         })
       );
@@ -592,35 +614,86 @@ const CourseDetail = () => {
                         return (
                           <div key={module.id} className="border rounded-xl overflow-hidden bg-white shadow-sm">
                             <div className="bg-gray-50 border-b p-6">
-                              <p className="text-xs font-bold text-[#002B49] uppercase tracking-widest mb-2">PARTIE {moduleIndex + 1}</p>
                               <h3 className="text-xl font-bold text-gray-900">{module.title}</h3>
                             </div>
                             <div className="p-0">
-                              {module.lessons?.sort((a, b) => a.order_index - b.order_index).map((lesson, lessonIndex) => {
-                                const completed = isLessonCompleted(lesson.id);
-                                return (
-                                  <div
-                                    key={lesson.id}
-                                    className={`flex items-center gap-4 p-4 border-b last:border-b-0 hover:bg-gray-50 transition-colors cursor-pointer ${!isUnlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                    onClick={() => {
-                                      if (isUnlocked) navigate(`/courses/${id}/lessons/${lesson.id}`);
-                                    }}
-                                  >
-                                    <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 border-gray-200 text-gray-400 text-xs font-bold group-hover:border-[#002B49] group-hover:text-[#002B49]">
-                                      {lessonIndex + 1}
-                                    </div>
-                                    <div className="flex-1">
-                                      <p className="font-semibold text-gray-900">{lesson.title}</p>
-                                      <div className="flex items-center gap-3 text-xs text-gray-500">
-                                        {getLessonIcon(lesson.lesson_type)}
-                                        <span>{lesson.lesson_type}</span>
-                                        {lesson.duration_minutes && <span>• {lesson.duration_minutes} min</span>}
+                              {(() => {
+                                const directLessons = (module.lessons || []).filter((l: any) => !l.chapter_id).map((l: any) => ({ ...l, _type: 'lesson' }));
+                                const chapters = (module.chapters || []).map((c: any) => ({
+                                  ...c,
+                                  _type: 'chapter',
+                                  lessons: (module.lessons || []).filter((l: any) => l.chapter_id === c.id)
+                                }));
+                                const combined = [...directLessons, ...chapters].sort((a: any, b: any) => a.order_index - b.order_index);
+
+                                let lessonCount = 0;
+
+                                return combined.map((item: any) => {
+                                  if (item._type === 'lesson') {
+                                    lessonCount++;
+                                    const lesson = item;
+                                    const completed = isLessonCompleted(lesson.id);
+                                    return (
+                                      <div
+                                        key={lesson.id}
+                                        className={`flex items-center gap-4 p-4 border-b last:border-b-0 hover:bg-gray-50 transition-colors cursor-pointer ${!isUnlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        onClick={() => {
+                                          if (isUnlocked) navigate(`/courses/${id}/lessons/${lesson.id}`);
+                                        }}
+                                      >
+                                        <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 border-gray-200 text-gray-400 text-xs font-bold group-hover:border-[#002B49] group-hover:text-[#002B49]">
+                                          {lessonCount}
+                                        </div>
+                                        <div className="flex-1">
+                                          <p className="font-semibold text-gray-900">{lesson.title}</p>
+                                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                                            {getLessonIcon(lesson.lesson_type)}
+                                          </div>
+                                        </div>
+                                        {completed && <CheckCircle className="w-5 h-5 text-green-500" />}
                                       </div>
-                                    </div>
-                                    {completed && <CheckCircle className="w-5 h-5 text-green-500" />}
-                                  </div>
-                                );
-                              })}
+                                    );
+                                  } else {
+                                    const chapter = item;
+                                    return (
+                                      <div key={chapter.id} className="border-b last:border-b-0">
+                                        <div className="bg-gray-100/50 p-4 border-l-4 border-[#002B49]">
+                                          <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                                            {chapter.title}
+                                          </h4>
+                                        </div>
+                                        <div className="pl-4">
+                                          {chapter.lessons?.sort((a: any, b: any) => a.order_index - b.order_index).map((lesson: any) => {
+                                            lessonCount++;
+                                            const completed = isLessonCompleted(lesson.id);
+                                            return (
+                                              <div
+                                                key={lesson.id}
+                                                className={`flex items-center gap-4 p-4 border-b last:border-b-0 hover:bg-gray-50 transition-colors cursor-pointer ${!isUnlocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                onClick={() => {
+                                                  if (isUnlocked) navigate(`/courses/${id}/lessons/${lesson.id}`);
+                                                }}
+                                              >
+                                                <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 border-gray-200 text-gray-400 text-xs font-bold group-hover:border-[#002B49] group-hover:text-[#002B49]">
+                                                  {lessonCount}
+                                                </div>
+                                                <div className="flex-1">
+                                                  <p className="font-semibold text-gray-900">{lesson.title}</p>
+                                                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                                                    {getLessonIcon(lesson.lesson_type)}
+                                                  </div>
+                                                </div>
+                                                {completed && <CheckCircle className="w-5 h-5 text-green-500" />}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                });
+                              })()}
 
                               {moduleQuizData?.quiz && (
                                 <div
@@ -633,7 +706,7 @@ const CourseDetail = () => {
                                     <Award className="w-4 h-4" />
                                   </div>
                                   <div className="flex-1">
-                                    <p className="font-semibold text-gray-900">Quiz : {moduleQuizData.quiz.title || "Évaluation du module"}</p>
+                                    <p className="font-semibold text-gray-900">{moduleQuizData.quiz.title || "Évaluation du module"}</p>
                                     <p className="text-xs text-gray-500">Valider vos acquis</p>
                                   </div>
                                 </div>
