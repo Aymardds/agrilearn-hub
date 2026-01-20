@@ -17,6 +17,8 @@ import UsersManagement from "./pages/admin/UsersManagement";
 import CertificatesManagement from "./pages/admin/CertificatesManagement";
 import CertificateSettings from "./pages/admin/CertificateSettings";
 import NotFound from "./pages/NotFound";
+import ModuleQuizView from "./pages/ModuleQuizView";
+import FinalAssessmentView from "./pages/FinalAssessmentView";
 
 // Editor Pages
 import MyCourses from "./pages/editor/MyCourses";
@@ -46,6 +48,8 @@ const App = () => (
             <Route path="/courses" element={<Courses />} />
             <Route path="/courses/:id" element={<CourseDetail />} />
             <Route path="/courses/:courseId/lessons/:lessonId" element={<LessonView />} />
+            <Route path="/courses/:courseId/modules/:moduleId/quiz" element={<ModuleQuizView />} />
+            <Route path="/courses/:courseId/final-assessment" element={<FinalAssessmentView />} />
 
             {/* Admin Routes */}
             <Route path="/admin/courses" element={<CoursesManagement />} />

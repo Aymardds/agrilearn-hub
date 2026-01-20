@@ -234,8 +234,51 @@ const LessonView = () => {
 
         if (enrollmentError) throw enrollmentError;
       }
+
+      // Check if all lessons in current module are completed
+      const currentModuleId = lesson.module_id;
+      const { data: moduleLessons } = await supabase
+        .from("lessons")
+        .select("id")
+        .eq("module_id", currentModuleId);
+
+      if (moduleLessons) {
+        const { data: moduleProgress } = await supabase
+          .from("lesson_progress")
+          .select("lesson_id")
+          .eq("user_id", user.id)
+          .in("lesson_id", moduleLessons.map(l => l.id))
+          .eq("is_completed", true);
+
+        const allModuleLessonsCompleted = moduleLessons.length === (moduleProgress?.length || 0);
+
+        // If all lessons completed, check for module quiz
+        if (allModuleLessonsCompleted) {
+          const { data: moduleQuiz } = await supabase
+            .from("quizzes")
+            .select("id")
+            .eq("module_id", currentModuleId)
+            .maybeSingle();
+
+          if (moduleQuiz) {
+            // Check if quiz already passed
+            const { data: quizAttempt } = await supabase
+              .from("quiz_attempts")
+              .select("passed")
+              .eq("user_id", user.id)
+              .eq("quiz_id", moduleQuiz.id)
+              .eq("passed", true)
+              .maybeSingle();
+
+            // Return module quiz info to redirect in onSuccess
+            return { shouldRedirectToQuiz: !quizAttempt, moduleId: currentModuleId };
+          }
+        }
+      }
+
+      return { shouldRedirectToQuiz: false };
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["lesson-progress"] });
       await queryClient.invalidateQueries({ queryKey: ["enrollment"] });
       await queryClient.invalidateQueries({ queryKey: ["enrollments"] });
@@ -243,6 +286,14 @@ const LessonView = () => {
       await queryClient.invalidateQueries({ queryKey: ["module-quizzes"] });
       await queryClient.invalidateQueries({ queryKey: ["available-courses"] });
       toast.success("Leçon marquée comme terminée!");
+
+      // Redirect to module quiz if needed
+      if (data?.shouldRedirectToQuiz && data?.moduleId) {
+        setTimeout(() => {
+          toast.info("🎯 Passez maintenant au quiz du module!", { duration: 3000 });
+          navigate(`/courses/${courseId}/modules/${data.moduleId}/quiz`);
+        }, 1500);
+      }
     },
   });
 

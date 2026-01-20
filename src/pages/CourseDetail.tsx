@@ -139,29 +139,22 @@ const CourseDetail = () => {
   });
 
   const { data: finalQuiz } = useQuery({
-    queryKey: ["final-quiz", id, modules],
+    queryKey: ["final-quiz", id],
     queryFn: async () => {
-      if (!modules || modules.length === 0) return null;
-
-      // Chercher dans la dernière leçon du dernier module
-      const lastModule = modules[modules.length - 1];
-      if (!lastModule.lessons || lastModule.lessons.length === 0) return null;
-
-      const lastLesson = lastModule.lessons.sort((a: any, b: any) => b.order_index - a.order_index)[0];
-
       const { data, error } = await supabase
         .from("quizzes")
         .select(`
           *,
           quiz_questions(*)
         `)
-        .eq("lesson_id", lastLesson.id)
+        .eq("course_id", id)
+        .eq("is_final_assessment", true)
         .maybeSingle();
 
       if (error) throw error;
       return data;
     },
-    enabled: !!id && !!modules,
+    enabled: !!id,
   });
 
   const [showFinalQuiz, setShowFinalQuiz] = useState(false);
@@ -539,9 +532,8 @@ const CourseDetail = () => {
                         <Button
                           className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
                           onClick={() => {
-                            // Naviguer vers l'onglet table pour voir le quiz ou ouvrir un dialog
-                            document.querySelector('[data-value="table"]')?.setAttribute('data-state', 'active');
-                            setShowFinalQuiz(true);
+                            // Naviguer vers la page d'évaluation finale
+                            navigate(`/courses/${id}/final-assessment`);
                           }}
                         >
                           Passer l'examen
@@ -730,7 +722,7 @@ const CourseDetail = () => {
                             </p>
                             <Button
                               className="bg-[#002B49] hover:bg-[#001D31] text-white"
-                              onClick={() => setShowFinalQuiz(true)}
+                              onClick={() => navigate(`/courses/${id}/final-assessment`)}
                             >
                               Commencer l'examen
                             </Button>

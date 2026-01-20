@@ -22,7 +22,7 @@ import {
   Settings,
   AlertCircle
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 interface RichTextEditorProps {
   value: string;
@@ -31,15 +31,19 @@ interface RichTextEditorProps {
 }
 
 const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) => {
+  const extensions = useMemo(() => [
+    StarterKit.configure({
+      code: false, // Exclude code to prevent conflicts if needed
+    }),
+    Underline,
+    Link.configure({
+      openOnClick: false,
+    }),
+    Image,
+  ], []);
+
   const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      Link.configure({
-        openOnClick: false,
-      }),
-      Image,
-    ],
+    extensions,
     content: value,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
@@ -49,7 +53,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
         class: "prose prose-sm sm:prose lg:prose-lg xl:prose-2xl m-5 focus:outline-none min-h-[150px]",
       },
     },
-  });
+  }, [extensions]);
 
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {

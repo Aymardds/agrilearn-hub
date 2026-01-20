@@ -464,25 +464,34 @@ export type Database = {
           created_at: string
           id: string
           lesson_id: string | null
-          module_id: string | null // Module auquel appartient le quiz
+          module_id: string | null
+          course_id: string | null
           passing_score: number
           title: string
+          is_final_assessment: boolean
+          time_limit_minutes: number | null
         }
         Insert: {
           created_at?: string
           id?: string
           lesson_id?: string | null
           module_id?: string | null
+          course_id?: string | null
           passing_score?: number
           title: string
+          is_final_assessment?: boolean
+          time_limit_minutes?: number | null
         }
         Update: {
           created_at?: string
           id?: string
           lesson_id?: string | null
           module_id?: string | null
+          course_id?: string | null
           passing_score?: number
           title?: string
+          is_final_assessment?: boolean
+          time_limit_minutes?: number | null
         }
         Relationships: [
           {
@@ -497,6 +506,13 @@ export type Database = {
             columns: ["module_id"]
             isOneToOne: false
             referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quizzes_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
             referencedColumns: ["id"]
           },
         ]
