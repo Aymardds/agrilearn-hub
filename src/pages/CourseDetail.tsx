@@ -718,7 +718,7 @@ const CourseDetail = () => {
                           </div>
                           <div className="p-6">
                             <p className="text-gray-700 mb-4">
-                              Vous êtes sur le point de passer l'examen final pour obtenir votre certificat AgriLearn.
+                              Vous êtes sur le point de passer l'examen final pour obtenir votre certificat e-grainolab.
                             </p>
                             <Button
                               className="bg-[#002B49] hover:bg-[#001D31] text-white"
@@ -749,7 +749,7 @@ const CourseDetail = () => {
                     <div className="flex-1 space-y-4">
                       <div>
                         <h3 className="text-2xl font-bold text-gray-900">{instructorProfile?.full_name}</h3>
-                        <p className="text-blue-600 font-semibold">Expert AgriLearn Lab</p>
+                        <p className="text-blue-600 font-semibold">Expert e-grainolab</p>
                       </div>
                       <p className="text-gray-700 leading-relaxed text-lg">
                         {instructorProfile?.bio}
@@ -774,7 +774,7 @@ const CourseDetail = () => {
                     <div className="flex items-center gap-6">
                       <div className="w-16 h-16 bg-[#002B49] rounded-xl flex items-center justify-center text-white font-bold text-2xl">A</div>
                       <div>
-                        <p className="font-bold text-xl">AgriLearn Hub</p>
+                        <p className="font-bold text-xl">e-grainolab</p>
                         <p className="text-sm text-gray-500">Mis à jour le {new Date().toLocaleDateString('fr-FR')}</p>
                       </div>
                     </div>

@@ -235,7 +235,7 @@ const CertificateVerification = () => {
                     {/* Footer */}
                     <div className="pt-4 border-t text-center text-sm text-muted-foreground">
                         <p>
-                            Ce certificat a été généré par la plateforme AgriLearn Hub
+                            Ce certificat a été généré par la plateforme e-grainolab
                         </p>
                         <p className="mt-1">
                             Pour toute question, veuillez contacter notre service support

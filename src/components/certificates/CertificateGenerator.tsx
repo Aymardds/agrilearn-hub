@@ -341,7 +341,7 @@ const CertificateGenerator = ({ courseId, userId, courseName }: CertificateGener
       }
 
       // Sauvegarder le PDF
-      doc.save(`Certificat_${course?.title || "AgriLearn"}_${profile?.full_name || "Etudiant"}.pdf`);
+      doc.save(`Certificat_${course?.title || "e-grainolab"}_${profile?.full_name || "Etudiant"}.pdf`);
       toast.success("Certificat téléchargé avec succès !");
 
     } catch (error) {
