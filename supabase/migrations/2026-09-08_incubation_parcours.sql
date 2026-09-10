@@ -271,6 +271,8 @@ CREATE POLICY "startup_profiles_incube_own" ON startup_profiles
   FOR ALL USING (user_id = auth.uid());
 CREATE POLICY "startup_profiles_coach_admin" ON startup_profiles
   FOR ALL USING (get_current_user_role() IN ('formateur', 'superadmin', 'superviseur'));
+CREATE POLICY "startup_profiles_public_read" ON startup_profiles
+  FOR SELECT USING (true);
 
 CREATE POLICY "diag_sub_own" ON diagnostic_submissions
   FOR ALL USING (
