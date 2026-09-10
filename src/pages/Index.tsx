@@ -34,8 +34,9 @@ import {
   Search,
   ExternalLink,
   Filter,
-  Sparkles,
   RefreshCw,
+  Clock,
+  Sparkles,
 } from "lucide-react";
 
 export interface StartupItem {
@@ -51,81 +52,6 @@ export interface StartupItem {
   created_at?: string;
   is_verified_label?: boolean;
 }
-
-const INITIAL_COHORT: StartupItem[] = [
-  {
-    id: "seed-1",
-    name: "AgriDrip CI",
-    sector: "Irrigation Intelligente & Solaire",
-    stage: "certifie",
-    team_size: 4,
-    description:
-      "Système d'irrigation goutte-à-goutte connecté et solaire adapté aux cultures maraîchères en zone péri-urbaine, optimisant la ressource en eau de 45%.",
-    website_url: "https://agridrip-ci.agrilab.ci",
-    is_verified_label: true,
-    founded_at: "2025-01-15",
-  },
-  {
-    id: "seed-2",
-    name: "BioFertil Ivoire",
-    sector: "Bio-intrants & Compostage",
-    stage: "pilotage",
-    team_size: 3,
-    description:
-      "Valorisation des résidus de cabosses de cacao en compost enrichi et bio-fertilisants microbiens locaux pour restaurer la fertilité des vergers cacaoyers.",
-    website_url: "https://biofertil-ivoire.ci",
-    is_verified_label: false,
-    founded_at: "2025-03-20",
-  },
-  {
-    id: "seed-3",
-    name: "CocoaTrace Hub",
-    sector: "Traçabilité & Qualité Cacao",
-    stage: "acceleration",
-    team_size: 5,
-    description:
-      "Application mobile de géolocalisation des parcelles, pesée connectée et contrôle qualité post-récolte pour coopératives cacaoyères certifiées.",
-    website_url: "https://cocoatrace.agrilab.ci",
-    is_verified_label: false,
-    founded_at: "2025-05-10",
-  },
-  {
-    id: "seed-4",
-    name: "SolarKool Maraîcher",
-    sector: "Énergie Solaire & Froid",
-    stage: "acceleration",
-    team_size: 3,
-    description:
-      "Mini-chambres froides mobiles fonctionnant à l'énergie solaire pour limiter les pertes post-récolte de tomates, piments et légumes feuilles.",
-    website_url: "https://solarkool.ci",
-    is_verified_label: false,
-    founded_at: "2025-06-01",
-  },
-  {
-    id: "seed-5",
-    name: "DroneAgri Scan",
-    sector: "Télédétection & Cartographie",
-    stage: "onboarding",
-    team_size: 2,
-    description:
-      "Surveillance multispectrale des plantations d'hévéa et de palmier pour la détection précoce du stress hydrique et des attaques fongiques.",
-    website_url: "https://droneagri-scan.ci",
-    is_verified_label: false,
-    founded_at: "2025-08-12",
-  },
-  {
-    id: "seed-6",
-    name: "GrainoWarrant",
-    sector: "Fintech Rurale & Stockage",
-    stage: "diagnostic",
-    team_size: 2,
-    description:
-      "Plateforme de warrantage agricole digitalisant les stocks villageois de maïs et de riz pour faciliter l'octroi de microcrédits de campagne.",
-    website_url: "https://grainowarrant.ci",
-    is_verified_label: false,
-    founded_at: "2025-09-05",
-  },
-];
 
 const STAGE_CONFIG: Record<
   string,
@@ -152,7 +78,7 @@ const STAGE_CONFIG: Record<
     dotColor: "bg-purple-500",
   },
   onboarding: {
-    label: "Onboarding & Feuille de Route",
+    label: "Onboarding & Cadrage",
     badgeColor: "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300",
     dotColor: "bg-blue-500",
   },
@@ -250,18 +176,18 @@ const PARTNERS = [
 export default function Index() {
   const navigate = useNavigate();
 
-  // Dynamic Startups State
-  const [startups, setStartups] = useState<StartupItem[]>(INITIAL_COHORT);
+  // Dynamic Startups State - 100% issues de la base de données
+  const [startups, setStartups] = useState<StartupItem[]>([]);
   const [loadingStartups, setLoadingStartups] = useState(true);
-  const [isLiveFromDb, setIsLiveFromDb] = useState(false);
   const [selectedStageFilter, setSelectedStageFilter] = useState<string>("all");
   const [selectedSectorFilter, setSelectedSectorFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeModalStartup, setActiveModalStartup] = useState<StartupItem | null>(null);
 
-  // Global counts for courses and farmers
-  const [dbCoursesCount, setDbCoursesCount] = useState<number>(4);
-  const [dbFarmersCount, setDbFarmersCount] = useState<number>(9);
+  // Real database counts
+  const [dbCoursesCount, setDbCoursesCount] = useState<number>(0);
+  const [dbFarmersCount, setDbFarmersCount] = useState<number>(0);
+  const [dbMachinesCount, setDbMachinesCount] = useState<number>(0);
 
   // Fetch dynamic startup data from Supabase
   const fetchStartupData = async () => {
@@ -281,10 +207,11 @@ export default function Index() {
 
       const labeledStartupIds = new Set((dbLabels as any[] || []).map((l) => l.startup_id));
 
-      // 3. Fetch courses & profiles counts
-      const [coursesRes, profilesRes] = await Promise.all([
+      // 3. Fetch real counts: courses, profiles, fablab_machines
+      const [coursesRes, profilesRes, machinesRes] = await Promise.all([
         supabase.from("courses" as any).select("id", { count: "exact", head: true }),
         supabase.from("profiles" as any).select("id", { count: "exact", head: true }),
+        supabase.from("fablab_machines" as any).select("id", { count: "exact", head: true }),
       ]);
 
       if (coursesRes.count !== null && coursesRes.count !== undefined) {
@@ -293,9 +220,11 @@ export default function Index() {
       if (profilesRes.count !== null && profilesRes.count !== undefined) {
         setDbFarmersCount(profilesRes.count);
       }
+      if (machinesRes.count !== null && machinesRes.count !== undefined) {
+        setDbMachinesCount(machinesRes.count);
+      }
 
       if (dbStartups && dbStartups.length > 0) {
-        // Map database records to StartupItem
         const formattedFromDb: StartupItem[] = (dbStartups as any[]).map((sp) => ({
           id: sp.id,
           name: sp.name || "Startup sans nom",
@@ -311,15 +240,13 @@ export default function Index() {
         }));
 
         setStartups(formattedFromDb);
-        setIsLiveFromDb(true);
       } else {
-        // Table is currently empty -> use curated initial cohort
-        setStartups(INITIAL_COHORT);
-        setIsLiveFromDb(false);
+        // Aucune startup dans la base : pas de fausses données
+        setStartups([]);
       }
     } catch (err) {
       console.error("Error fetching dynamic startups:", err);
-      setStartups(INITIAL_COHORT);
+      setStartups([]);
     } finally {
       setLoadingStartups(false);
     }
@@ -335,7 +262,7 @@ export default function Index() {
     fetchStartupData();
   }, [navigate]);
 
-  // Compute all metrics dynamically from the current startups data
+  // Compute all metrics dynamically from the real startups data
   const dynamicMetrics = useMemo(() => {
     const totalStartups = startups.length;
     const certifiedCount = startups.filter((s) => s.stage === "certifie" || s.is_verified_label).length;
@@ -345,13 +272,11 @@ export default function Index() {
     const diagnosticCount = startups.filter((s) => s.stage === "diagnostic").length;
 
     const totalJobsCreated = startups.reduce((acc, s) => acc + (Number(s.team_size) || 1), 0);
-
     const sectors = Array.from(new Set(startups.map((s) => s.sector).filter(Boolean)));
 
-    // Calculate survival rate dynamically (startups that progressed beyond initial diagnostic)
     const survivedCount = totalStartups - diagnosticCount;
     const survivalRate =
-      totalStartups > 0 ? Math.min(96, Math.max(75, Math.round((survivedCount / totalStartups) * 100))) : 88;
+      totalStartups > 0 ? Math.round((survivedCount / totalStartups) * 100) : 0;
 
     return {
       totalStartups,
@@ -417,9 +342,11 @@ export default function Index() {
             </a>
             <a href="#startups" className="hover:text-primary transition-colors flex items-center gap-1.5">
               <span>Startups</span>
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                {dynamicMetrics.totalStartups}
-              </Badge>
+              {dynamicMetrics.totalStartups > 0 && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {dynamicMetrics.totalStartups}
+                </Badge>
+              )}
             </a>
             <a href="#parcours" className="hover:text-primary transition-colors">
               Le Parcours
@@ -470,7 +397,7 @@ export default function Index() {
 
             <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
               <strong>E-GrainoLab</strong> est le dispositif institutionnel qui unit formation
-              agricole certifiante et incubation d'agri-startups. Du diagnostic terrain à la
+              agricole certifiante et incubation de startups du vivant. Du diagnostic terrain à la
               labellisation officielle, nous accompagnons les exploitants et entrepreneurs vers
               l'excellence durable.
             </p>
@@ -494,18 +421,31 @@ export default function Index() {
                 }}
               >
                 <Sparkles className="w-5 h-5 text-primary" />
-                Découvrir les startups ({dynamicMetrics.totalStartups})
+                {dynamicMetrics.totalStartups > 0
+                  ? `Découvrir les startups (${dynamicMetrics.totalStartups})`
+                  : "Consulter l'incubateur"}
               </Button>
             </div>
 
-            {/* Live Data Badge */}
+            {/* Real Database Indicator Badge */}
             <div className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground">
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               <span>
-                Données d'incubation en direct :{" "}
-                <strong className="text-foreground">{dynamicMetrics.totalStartups} startups actives</strong> ·{" "}
-                <strong className="text-foreground">{dynamicMetrics.certifiedCount} labellisée{dynamicMetrics.certifiedCount > 1 ? "s" : ""}</strong> ·{" "}
-                <strong className="text-foreground">{dynamicMetrics.totalJobsCreated} membres d'équipe</strong>
+                {dynamicMetrics.totalStartups > 0 ? (
+                  <>
+                    Données d'incubation en direct :{" "}
+                    <strong className="text-foreground">{dynamicMetrics.totalStartups} startup{dynamicMetrics.totalStartups > 1 ? "s" : ""} active{dynamicMetrics.totalStartups > 1 ? "s" : ""}</strong> ·{" "}
+                    <strong className="text-foreground">{dynamicMetrics.certifiedCount} labellisée{dynamicMetrics.certifiedCount > 1 ? "s" : ""}</strong> ·{" "}
+                    <strong className="text-foreground">{dynamicMetrics.totalJobsCreated} membres d'équipe</strong>
+                  </>
+                ) : (
+                  <>
+                    Incubateur E-GrainoLab :{" "}
+                    <strong className="text-foreground">Appel à candidatures ouvert</strong> ·{" "}
+                    <strong className="text-foreground">{dbCoursesCount} cours certifiants</strong> ·{" "}
+                    <strong className="text-foreground">{dbFarmersCount} inscrits</strong>
+                  </>
+                )}
               </span>
             </div>
 
@@ -531,20 +471,20 @@ export default function Index() {
           </div>
         </section>
 
-        {/* DYNAMIC STATS SECTION */}
+        {/* REAL DATABASE STATS SECTION */}
         <section id="stats" className="py-16 md:py-24 bg-muted/30 border-b border-border/40">
           <div className="container mx-auto px-4 max-w-6xl">
             <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-emerald-500/10 text-emerald-700 text-xs font-semibold uppercase tracking-wider">
                 <BarChart3 className="w-3.5 h-3.5" />
-                <span>Statistiques Dynamiques de l'Incubateur</span>
+                <span>Indicateurs Réels de la Plateforme</span>
               </div>
               <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-                Des résultats tangibles mesurés en temps réel
+                Données effectives et mesurées
               </h2>
               <p className="text-muted-foreground text-base">
-                Les indicateurs clés de performance consolidés en direct à partir des startups
-                incubées et des formations dispensées.
+                Tous les chiffres affichés ci-dessous sont synchronisés directement avec la base de données
+                E-GrainoLab.
               </p>
             </div>
 
@@ -557,7 +497,7 @@ export default function Index() {
                       <Rocket className="w-6 h-6" />
                     </div>
                     <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50/50">
-                      En portefeuille
+                      Incubateur
                     </Badge>
                   </div>
                   <div className="text-4xl font-extrabold tracking-tight text-foreground pt-2">
@@ -567,7 +507,9 @@ export default function Index() {
                     Startups Agri-Tech incubées
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {dynamicMetrics.accelerationCount} en phase d'accélération, {dynamicMetrics.pilotageCount} en pilotage KPI et {dynamicMetrics.diagnosticCount} en diagnostic initial.
+                    {dynamicMetrics.totalStartups > 0
+                      ? `${dynamicMetrics.accelerationCount} en accélération, ${dynamicMetrics.pilotageCount} en pilotage KPI, ${dynamicMetrics.diagnosticCount} en diagnostic.`
+                      : "La première promotion est en cours de constitution. Appel à candidatures ouvert."}
                   </p>
                 </CardContent>
               </Card>
@@ -590,12 +532,14 @@ export default function Index() {
                     Startups Labellisées & Certifiées
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Projets ayant validé leur soutenance devant le jury indépendant et reçu le Label officiel E-GrainoLab.
+                    {dynamicMetrics.certifiedCount > 0
+                      ? "Projets ayant validé leur soutenance devant le jury indépendant."
+                      : "La délivrance du Label intervient après validation du cycle complet d'incubation."}
                   </p>
                 </CardContent>
               </Card>
 
-              {/* Stat 3: Emplois & Fondateurs */}
+              {/* Stat 3: Équipes / Fondateurs OU Étapes du parcours */}
               <Card className="border border-border/60 shadow-xs hover:shadow-md transition-shadow bg-card/70 backdrop-blur-xs">
                 <CardContent className="p-6 space-y-2">
                   <div className="flex items-center justify-between">
@@ -603,22 +547,26 @@ export default function Index() {
                       <Users className="w-6 h-6" />
                     </div>
                     <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50/50">
-                      Équipes & R&D
+                      {dynamicMetrics.totalStartups > 0 ? "Équipes & R&D" : "Méthodologie"}
                     </Badge>
                   </div>
                   <div className="text-4xl font-extrabold tracking-tight text-foreground pt-2">
-                    {dynamicMetrics.totalJobsCreated}
+                    {dynamicMetrics.totalStartups > 0 ? dynamicMetrics.totalJobsCreated : 5}
                   </div>
                   <div className="font-semibold text-base text-foreground">
-                    Ingénieurs & Fondateurs mobilisés
+                    {dynamicMetrics.totalStartups > 0
+                      ? "Ingénieurs & Fondateurs mobilisés"
+                      : "Étapes structurantes du parcours"}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Agronomes, développeurs et spécialistes de terrain composant les équipes fondatrices des startups.
+                    {dynamicMetrics.totalStartups > 0
+                      ? "Membres actifs composant les équipes fondatrices des startups incubées."
+                      : "Diagnostic 360°, Onboarding, Accélération, Pilotage KPI et Labellisation."}
                   </p>
                 </CardContent>
               </Card>
 
-              {/* Stat 4: Secteurs d'activité */}
+              {/* Stat 4: Machines FabLab */}
               <Card className="border border-border/60 shadow-xs hover:shadow-md transition-shadow bg-card/70 backdrop-blur-xs">
                 <CardContent className="p-6 space-y-2">
                   <div className="flex items-center justify-between">
@@ -626,63 +574,63 @@ export default function Index() {
                       <Cpu className="w-6 h-6" />
                     </div>
                     <Badge variant="outline" className="border-teal-200 text-teal-700 bg-teal-50/50">
-                      Diversification
+                      FabLab & Tech
                     </Badge>
                   </div>
                   <div className="text-4xl font-extrabold tracking-tight text-foreground pt-2">
-                    {dynamicMetrics.sectorsCount}
+                    {dbMachinesCount}
                   </div>
                   <div className="font-semibold text-base text-foreground">
-                    Filières d'innovation couvertes
+                    Machines & Ateliers de prototypage
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Irrigation, bio-intrants, traçabilité, drones de télédétection, énergie solaire et fintech de stockage.
+                    Imprimantes 3D, découpe laser, CNC Shopbot et thermoformeuse prêtes pour les incubés.
                   </p>
                 </CardContent>
               </Card>
 
-              {/* Stat 5: Taux de Pérennité */}
+              {/* Stat 5: Formations en ligne */}
               <Card className="border border-border/60 shadow-xs hover:shadow-md transition-shadow bg-card/70 backdrop-blur-xs">
                 <CardContent className="p-6 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-950/50 text-green-700 flex items-center justify-center">
-                      <TrendingUp className="w-6 h-6" />
+                      <BookOpen className="w-6 h-6" />
                     </div>
                     <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50/50">
-                      Pérennité
+                      E-Learning
                     </Badge>
                   </div>
                   <div className="text-4xl font-extrabold tracking-tight text-foreground pt-2">
-                    {dynamicMetrics.survivalRate}%
+                    {dbCoursesCount}
                   </div>
                   <div className="font-semibold text-base text-foreground">
-                    Taux d'avancement du parcours
+                    Cours & Cursus certifiants
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Proportion des startups franchissant avec succès le diagnostic vers l'onboarding et l'accélération.
+                    Formations spécialisées complètes avec leçons vidéo, documents et quiz d'évaluation.
                   </p>
                 </CardContent>
               </Card>
 
-              {/* Stat 6: Agriculteurs & Apprenants formés */}
+              {/* Stat 6: Apprenants & Professionnels inscrits */}
               <Card className="border border-border/60 shadow-xs hover:shadow-md transition-shadow bg-card/70 backdrop-blur-xs">
                 <CardContent className="p-6 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-950/50 text-purple-700 flex items-center justify-center">
-                      <BookOpen className="w-6 h-6" />
+                      <Users className="w-6 h-6" />
                     </div>
                     <Badge variant="outline" className="border-purple-200 text-purple-700 bg-purple-50/50">
-                      Formation & Diffusion
+                      Communauté
                     </Badge>
                   </div>
                   <div className="text-4xl font-extrabold tracking-tight text-foreground pt-2">
                     {dbFarmersCount}
                   </div>
                   <div className="font-semibold text-base text-foreground">
-                    Apprenants & Professionnels inscrits
+                    Utilisateurs & Professionnels inscrits
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Inscrits sur les {dbCoursesCount} cours et modules certifiants disponibles sur la plateforme.
+                    Membres inscrits sur la plateforme E-GrainoLab (apprenants, formateurs et incubés).
                   </p>
                 </CardContent>
               </Card>
@@ -690,21 +638,22 @@ export default function Index() {
           </div>
         </section>
 
-        {/* DYNAMIC STARTUPS SHOWCASE SECTION */}
+        {/* REAL STARTUPS SHOWCASE SECTION */}
         <section id="startups" className="py-20 border-b border-border/40">
           <div className="container mx-auto px-4 max-w-6xl">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
               <div className="space-y-2">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-primary/10 text-primary text-xs font-semibold uppercase tracking-wider">
                   <Rocket className="w-3.5 h-3.5" />
-                  <span>Annuaire des Pépites Incubées</span>
+                  <span>Portefeuille de l'Incubateur</span>
                 </div>
                 <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-                  Les Startups de notre Incubateur
+                  Les Startups de l'Incubateur
                 </h2>
                 <p className="text-muted-foreground text-sm max-w-2xl">
-                  Découvrez les solutions technologiques développées au sein d'E-GrainoLab. Filtrables
-                  en temps réel selon leur stade d'incubation et leur domaine d'intervention.
+                  {startups.length > 0
+                    ? "Découvrez les innovations issues de notre programme d'accompagnement, synchronisées en temps réel avec la base de données."
+                    : "L'annuaire public présente les startups enregistrées et validées au sein du programme d'incubation."}
                 </p>
               </div>
 
@@ -725,177 +674,211 @@ export default function Index() {
                   className="gap-1.5 text-xs h-9"
                 >
                   <Rocket className="w-3.5 h-3.5" />
-                  <span>Rejoindre la promotion</span>
+                  <span>Candidater</span>
                 </Button>
               </div>
             </div>
 
-            {/* Filters Bar */}
-            <div className="bg-card border border-border/70 rounded-2xl p-4 mb-8 space-y-4 shadow-xs">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                  <Input
-                    placeholder="Rechercher une startup, une technologie, un domaine..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 text-sm h-10"
-                  />
+            {/* If no startups in database -> clean authentic callout */}
+            {startups.length === 0 ? (
+              <div className="bg-card border border-dashed border-border/80 rounded-3xl p-10 md:p-14 text-center space-y-5 max-w-3xl mx-auto shadow-xs">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto shadow-xs">
+                  <Rocket className="w-8 h-8" />
                 </div>
-
-                {/* Stage Filter Chips */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-                  <Button
-                    size="sm"
-                    variant={selectedStageFilter === "all" ? "default" : "outline"}
-                    onClick={() => setSelectedStageFilter("all")}
-                    className="text-xs h-9 whitespace-nowrap"
-                  >
-                    Toutes ({startups.length})
+                <div className="space-y-2">
+                  <Badge variant="outline" className="text-xs uppercase tracking-wider bg-primary/10 text-primary border-primary/20">
+                    Cohorte 2026 en constitution
+                  </Badge>
+                  <h3 className="text-2xl md:text-3xl font-bold tracking-tight">
+                    Les premières candidatures sont ouvertes !
+                  </h3>
+                  <p className="text-muted-foreground text-sm max-w-xl mx-auto leading-relaxed">
+                    Aucune startup n'est encore enregistrée publiquement dans la base de données.
+                    Si vous portez une solution agri-tech ou une innovation agricole durable,
+                    candidatez pour intégrer la première promotion accompagnée par nos experts et
+                    partenaires institutionnels.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <Button size="lg" onClick={() => navigate("/auth")} className="gap-2 w-full sm:w-auto font-semibold">
+                    <Rocket className="w-4 h-4" />
+                    Déposer un dossier de candidature
                   </Button>
-                  <Button
-                    size="sm"
-                    variant={selectedStageFilter === "certifie" ? "default" : "outline"}
-                    onClick={() => setSelectedStageFilter("certifie")}
-                    className="text-xs h-9 whitespace-nowrap"
-                  >
-                    Labellisées ({dynamicMetrics.certifiedCount})
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={selectedStageFilter === "acceleration" ? "default" : "outline"}
-                    onClick={() => setSelectedStageFilter("acceleration")}
-                    className="text-xs h-9 whitespace-nowrap"
-                  >
-                    Accélération ({dynamicMetrics.accelerationCount})
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={selectedStageFilter === "pilotage" ? "default" : "outline"}
-                    onClick={() => setSelectedStageFilter("pilotage")}
-                    className="text-xs h-9 whitespace-nowrap"
-                  >
-                    Pilotage ({dynamicMetrics.pilotageCount})
+                  <Button variant="outline" size="lg" onClick={fetchStartupData} className="gap-2 w-full sm:w-auto">
+                    <RefreshCw className={`w-4 h-4 ${loadingStartups ? "animate-spin" : ""}`} />
+                    Actualiser la base
                   </Button>
                 </div>
-              </div>
-
-              {/* Sectors quick selector */}
-              {dynamicMetrics.sectors.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-border/50 text-xs text-muted-foreground">
-                  <span className="font-semibold text-foreground flex items-center gap-1">
-                    <Filter className="w-3 h-3" /> Filière :
-                  </span>
-                  <button
-                    onClick={() => setSelectedSectorFilter("all")}
-                    className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
-                      selectedSectorFilter === "all"
-                        ? "bg-primary text-primary-foreground font-medium"
-                        : "bg-muted hover:bg-muted/80 text-foreground"
-                    }`}
-                  >
-                    Tous ({dynamicMetrics.sectors.length})
-                  </button>
-                  {dynamicMetrics.sectors.map((sec, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedSectorFilter(sec)}
-                      className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
-                        selectedSectorFilter === sec
-                          ? "bg-primary text-primary-foreground font-medium"
-                          : "bg-muted hover:bg-muted/80 text-foreground"
-                      }`}
-                    >
-                      {sec}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Startups Cards Grid */}
-            {filteredStartups.length === 0 ? (
-              <div className="text-center py-16 bg-muted/20 border border-dashed rounded-2xl space-y-3">
-                <Rocket className="w-10 h-10 text-muted-foreground mx-auto stroke-1" />
-                <h3 className="font-semibold text-base">Aucune startup trouvée</h3>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Aucun projet ne correspond à vos critères de recherche. Réinitialisez les filtres
-                  ou déposez votre propre candidature.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setSelectedStageFilter("all");
-                    setSelectedSectorFilter("all");
-                  }}
-                >
-                  Réinitialiser les filtres
-                </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredStartups.map((item) => {
-                  const stageInfo = STAGE_CONFIG[item.stage] || STAGE_CONFIG.diagnostic;
-                  return (
-                    <Card
-                      key={item.id}
-                      className="border border-border/70 hover:border-primary/50 transition-all hover:-translate-y-1 shadow-xs bg-card flex flex-col justify-between group"
+              <>
+                {/* Filters Bar */}
+                <div className="bg-card border border-border/70 rounded-2xl p-4 mb-8 space-y-4 shadow-xs">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                      <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Input
+                        placeholder="Rechercher une startup, une technologie, un domaine..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 text-sm h-10"
+                      />
+                    </div>
+
+                    {/* Stage Filter Chips */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                      <Button
+                        size="sm"
+                        variant={selectedStageFilter === "all" ? "default" : "outline"}
+                        onClick={() => setSelectedStageFilter("all")}
+                        className="text-xs h-9 whitespace-nowrap"
+                      >
+                        Toutes ({startups.length})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={selectedStageFilter === "certifie" ? "default" : "outline"}
+                        onClick={() => setSelectedStageFilter("certifie")}
+                        className="text-xs h-9 whitespace-nowrap"
+                      >
+                        Labellisées ({dynamicMetrics.certifiedCount})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={selectedStageFilter === "acceleration" ? "default" : "outline"}
+                        onClick={() => setSelectedStageFilter("acceleration")}
+                        className="text-xs h-9 whitespace-nowrap"
+                      >
+                        Accélération ({dynamicMetrics.accelerationCount})
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={selectedStageFilter === "pilotage" ? "default" : "outline"}
+                        onClick={() => setSelectedStageFilter("pilotage")}
+                        className="text-xs h-9 whitespace-nowrap"
+                      >
+                        Pilotage ({dynamicMetrics.pilotageCount})
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Sectors quick selector */}
+                  {dynamicMetrics.sectors.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-border/50 text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground flex items-center gap-1">
+                        <Filter className="w-3 h-3" /> Filière :
+                      </span>
+                      <button
+                        onClick={() => setSelectedSectorFilter("all")}
+                        className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
+                          selectedSectorFilter === "all"
+                            ? "bg-primary text-primary-foreground font-medium"
+                            : "bg-muted hover:bg-muted/80 text-foreground"
+                        }`}
+                      >
+                        Tous ({dynamicMetrics.sectors.length})
+                      </button>
+                      {dynamicMetrics.sectors.map((sec, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setSelectedSectorFilter(sec)}
+                          className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
+                            selectedSectorFilter === sec
+                              ? "bg-primary text-primary-foreground font-medium"
+                              : "bg-muted hover:bg-muted/80 text-foreground"
+                          }`}
+                        >
+                          {sec}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Startups Cards Grid */}
+                {filteredStartups.length === 0 ? (
+                  <div className="text-center py-16 bg-muted/20 border border-dashed rounded-2xl space-y-3">
+                    <Rocket className="w-10 h-10 text-muted-foreground mx-auto stroke-1" />
+                    <h3 className="font-semibold text-base">Aucun résultat trouvé</h3>
+                    <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                      Aucun projet ne correspond à vos critères de recherche.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSelectedStageFilter("all");
+                        setSelectedSectorFilter("all");
+                      }}
                     >
-                      <CardContent className="p-6 space-y-4 flex-1 flex flex-col justify-between">
-                        <div className="space-y-3">
-                          {/* Header: Sector + Stage Badge */}
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-[11px] font-semibold text-primary uppercase tracking-wider bg-primary/10 px-2 py-0.5 rounded-md">
-                              {item.sector}
-                            </span>
-                            <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 ${stageInfo.badgeColor}`}
-                            >
-                              <span className={`w-1.5 h-1.5 rounded-full ${stageInfo.dotColor}`} />
-                              {stageInfo.label}
-                            </span>
-                          </div>
+                      Réinitialiser les filtres
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredStartups.map((item) => {
+                      const stageInfo = STAGE_CONFIG[item.stage] || STAGE_CONFIG.diagnostic;
+                      return (
+                        <Card
+                          key={item.id}
+                          className="border border-border/70 hover:border-primary/50 transition-all hover:-translate-y-1 shadow-xs bg-card flex flex-col justify-between group"
+                        >
+                          <CardContent className="p-6 space-y-4 flex-1 flex flex-col justify-between">
+                            <div className="space-y-3">
+                              {/* Header: Sector + Stage Badge */}
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="text-[11px] font-semibold text-primary uppercase tracking-wider bg-primary/10 px-2 py-0.5 rounded-md">
+                                  {item.sector}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border flex items-center gap-1.5 shrink-0 ${stageInfo.badgeColor}`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full ${stageInfo.dotColor}`} />
+                                  {stageInfo.label}
+                                </span>
+                              </div>
 
-                          {/* Startup Name */}
-                          <div>
-                            <h3 className="text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
-                              {item.name}
-                              {item.is_verified_label && (
-                                <Award className="w-4 h-4 text-emerald-600" title="Label d'Excellence E-GrainoLab" />
-                              )}
-                            </h3>
-                          </div>
+                              {/* Startup Name */}
+                              <div>
+                                <h3 className="text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
+                                  {item.name}
+                                  {item.is_verified_label && (
+                                    <Award className="w-4 h-4 text-emerald-600" title="Label d'Excellence E-GrainoLab" />
+                                  )}
+                                </h3>
+                              </div>
 
-                          {/* Description */}
-                          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                            {item.description}
-                          </p>
-                        </div>
+                              {/* Description */}
+                              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                                {item.description}
+                              </p>
+                            </div>
 
-                        {/* Footer details */}
-                        <div className="pt-4 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1.5">
-                            <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                            <span>{item.team_size} membre{item.team_size > 1 ? "s" : ""}</span>
-                          </div>
+                            {/* Footer details */}
+                            <div className="pt-4 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                                <span>{item.team_size} membre{item.team_size > 1 ? "s" : ""}</span>
+                              </div>
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 px-2 text-xs font-semibold text-primary hover:text-primary/80 gap-1"
-                            onClick={() => setActiveModalStartup(item)}
-                          >
-                            <span>Fiche complète</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-xs font-semibold text-primary hover:text-primary/80 gap-1"
+                                onClick={() => setActiveModalStartup(item)}
+                              >
+                                <span>Fiche complète</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </section>
@@ -1321,7 +1304,7 @@ export default function Index() {
                   <div>
                     <span className="text-xs text-muted-foreground block">Taille de l'équipe</span>
                     <span className="font-semibold text-foreground flex items-center gap-1 mt-0.5">
-                      <Users className="w-3.5 h-3.5 text-primary" /> {activeModalStartup.team_size} personnes
+                      <Users className="w-3.5 h-3.5 text-primary" /> {activeModalStartup.team_size} personne{activeModalStartup.team_size > 1 ? "s" : ""}
                     </span>
                   </div>
                   <div>
