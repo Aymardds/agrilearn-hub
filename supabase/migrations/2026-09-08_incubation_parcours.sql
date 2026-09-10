@@ -354,3 +354,157 @@ INSERT INTO fablab_machines (name, type, description, location) VALUES
   ('CNC Shopbot', 'fraiseuse', 'Fraiseuse numérique 3 axes, bois et plastique', 'Atelier A - Station 2'),
   ('Thermoformeuse', 'autre', 'Formage plastique sous vide', 'Atelier C')
 ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- DONNÉES DE DÉMONSTRATION: Startups Incubées Réalistes (Cohorte Pilote)
+-- ============================================================
+DO $$
+DECLARE
+  u_rec RECORD;
+  idx INT := 1;
+  new_sp_id UUID;
+BEGIN
+  FOR u_rec IN (
+    SELECT id, full_name FROM profiles
+    WHERE full_name IS NOT NULL
+      AND full_name NOT ILIKE '%formateur%'
+      AND full_name NOT ILIKE '%admin%'
+    ORDER BY created_at ASC
+    LIMIT 6
+  ) LOOP
+    IF idx = 1 THEN
+      INSERT INTO startup_profiles (id, user_id, name, sector, stage, team_size, description, equity_signed)
+      VALUES (
+        gen_random_uuid(),
+        u_rec.id,
+        'AgriDrip CI',
+        'Irrigation Intelligente & Solaire',
+        'certifie',
+        4,
+        'Système d''irrigation goutte-à-goutte connecté et solaire adapté aux cultures maraîchères en zone péri-urbaine.',
+        TRUE
+      )
+      ON CONFLICT (user_id) DO UPDATE SET 
+        name = EXCLUDED.name, 
+        sector = EXCLUDED.sector,
+        stage = EXCLUDED.stage,
+        team_size = EXCLUDED.team_size,
+        description = EXCLUDED.description
+      RETURNING id INTO new_sp_id;
+
+      INSERT INTO user_roles (user_id, role) VALUES (u_rec.id, 'incube') ON CONFLICT DO NOTHING;
+
+      IF new_sp_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM incubation_labels WHERE startup_id = new_sp_id) THEN
+        INSERT INTO incubation_labels (startup_id, label_number, average_jury_score)
+        VALUES (new_sp_id, 'LBL-2026-001', 17.5);
+      END IF;
+
+    ELSIF idx = 2 THEN
+      INSERT INTO startup_profiles (id, user_id, name, sector, stage, team_size, description, equity_signed)
+      VALUES (
+        gen_random_uuid(),
+        u_rec.id,
+        'BioFertil Ivoire',
+        'Bio-intrants & Compostage',
+        'pilotage',
+        3,
+        'Valorisation des résidus de cabosses de cacao en compost enrichi et bio-fertilisants microbiens locaux.',
+        TRUE
+      )
+      ON CONFLICT (user_id) DO UPDATE SET 
+        name = EXCLUDED.name, 
+        sector = EXCLUDED.sector,
+        stage = EXCLUDED.stage,
+        team_size = EXCLUDED.team_size,
+        description = EXCLUDED.description;
+
+      INSERT INTO user_roles (user_id, role) VALUES (u_rec.id, 'incube') ON CONFLICT DO NOTHING;
+
+    ELSIF idx = 3 THEN
+      INSERT INTO startup_profiles (id, user_id, name, sector, stage, team_size, description, equity_signed)
+      VALUES (
+        gen_random_uuid(),
+        u_rec.id,
+        'CocoaTrace Hub',
+        'Traçabilité & Qualité Cacao',
+        'acceleration',
+        5,
+        'Application mobile de géolocalisation des parcelles et contrôle qualité post-récolte pour coopératives cacaoyères.',
+        TRUE
+      )
+      ON CONFLICT (user_id) DO UPDATE SET 
+        name = EXCLUDED.name, 
+        sector = EXCLUDED.sector,
+        stage = EXCLUDED.stage,
+        team_size = EXCLUDED.team_size,
+        description = EXCLUDED.description;
+
+      INSERT INTO user_roles (user_id, role) VALUES (u_rec.id, 'incube') ON CONFLICT DO NOTHING;
+
+    ELSIF idx = 4 THEN
+      INSERT INTO startup_profiles (id, user_id, name, sector, stage, team_size, description, equity_signed)
+      VALUES (
+        gen_random_uuid(),
+        u_rec.id,
+        'SolarKool Maraîcher',
+        'Énergie Solaire & Froid',
+        'acceleration',
+        3,
+        'Mini-chambres froides mobiles fonctionnant à l''énergie solaire pour limiter les pertes post-récolte de maraîchers.',
+        TRUE
+      )
+      ON CONFLICT (user_id) DO UPDATE SET 
+        name = EXCLUDED.name, 
+        sector = EXCLUDED.sector,
+        stage = EXCLUDED.stage,
+        team_size = EXCLUDED.team_size,
+        description = EXCLUDED.description;
+
+      INSERT INTO user_roles (user_id, role) VALUES (u_rec.id, 'incube') ON CONFLICT DO NOTHING;
+
+    ELSIF idx = 5 THEN
+      INSERT INTO startup_profiles (id, user_id, name, sector, stage, team_size, description, equity_signed)
+      VALUES (
+        gen_random_uuid(),
+        u_rec.id,
+        'DroneAgri Scan',
+        'Télédétection & Cartographie',
+        'onboarding',
+        2,
+        'Surveillance multispectrale des plantations d''hévéa et de palmier pour la détection précoce du stress hydrique.',
+        FALSE
+      )
+      ON CONFLICT (user_id) DO UPDATE SET 
+        name = EXCLUDED.name, 
+        sector = EXCLUDED.sector,
+        stage = EXCLUDED.stage,
+        team_size = EXCLUDED.team_size,
+        description = EXCLUDED.description;
+
+      INSERT INTO user_roles (user_id, role) VALUES (u_rec.id, 'incube') ON CONFLICT DO NOTHING;
+
+    ELSIF idx = 6 THEN
+      INSERT INTO startup_profiles (id, user_id, name, sector, stage, team_size, description, equity_signed)
+      VALUES (
+        gen_random_uuid(),
+        u_rec.id,
+        'GrainoWarrant',
+        'Fintech Rurale & Stockage',
+        'diagnostic',
+        2,
+        'Plateforme de warrantage agricole digitalisant les stocks villageois pour faciliter l''octroi de microcrédits.',
+        FALSE
+      )
+      ON CONFLICT (user_id) DO UPDATE SET 
+        name = EXCLUDED.name, 
+        sector = EXCLUDED.sector,
+        stage = EXCLUDED.stage,
+        team_size = EXCLUDED.team_size,
+        description = EXCLUDED.description;
+
+      INSERT INTO user_roles (user_id, role) VALUES (u_rec.id, 'incube') ON CONFLICT DO NOTHING;
+    END IF;
+
+    idx := idx + 1;
+  END LOOP;
+END $$;

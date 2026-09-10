@@ -55,75 +55,75 @@ export interface StartupItem {
 const INITIAL_COHORT: StartupItem[] = [
   {
     id: "seed-1",
-    name: "AgriDrip Systems",
-    sector: "Irrigation Intelligente",
+    name: "AgriDrip CI",
+    sector: "Irrigation Intelligente & Solaire",
     stage: "certifie",
-    team_size: 7,
+    team_size: 4,
     description:
-      "Système d'irrigation goutte-à-goutte automatisé alimenté par énergie solaire et piloté par capteurs capacitifs d'humidité pour réduire la consommation d'eau de 45%.",
-    website_url: "https://agridrip.example.org",
+      "Système d'irrigation goutte-à-goutte connecté et solaire adapté aux cultures maraîchères en zone péri-urbaine, optimisant la ressource en eau de 45%.",
+    website_url: "https://agridrip-ci.agrilab.ci",
     is_verified_label: true,
-    founded_at: "2024-03-15",
+    founded_at: "2025-01-15",
   },
   {
     id: "seed-2",
-    name: "BioFertil-Lab",
-    sector: "Bio-intrants & Fertilisants",
-    stage: "certifie",
-    team_size: 5,
+    name: "BioFertil Ivoire",
+    sector: "Bio-intrants & Compostage",
+    stage: "pilotage",
+    team_size: 3,
     description:
-      "Production locale de bio-fertilisants liquides et champignons mycorhiziens enrichis issus de co-produits agricoles pour régénérer la biologie des sols sans intrants chimiques.",
-    website_url: "https://biofertil.example.org",
-    is_verified_label: true,
-    founded_at: "2024-01-20",
+      "Valorisation des résidus de cabosses de cacao en compost enrichi et bio-fertilisants microbiens locaux pour restaurer la fertilité des vergers cacaoyers.",
+    website_url: "https://biofertil-ivoire.ci",
+    is_verified_label: false,
+    founded_at: "2025-03-20",
   },
   {
     id: "seed-3",
-    name: "TraceAgri Africa",
-    sector: "Traçabilité & Blockchain",
-    stage: "pilotage",
-    team_size: 6,
-    description:
-      "Plateforme mobile de traçabilité des récoltes garantissant la conformité commerce équitable, le paiement instantané aux producteurs et l'accès direct aux acheteurs d'export.",
-    website_url: "https://traceagri.example.org",
-    is_verified_label: false,
-    founded_at: "2024-06-10",
-  },
-  {
-    id: "seed-4",
-    name: "DroneField Analytics",
-    sector: "Drones & Télédétection",
-    stage: "acceleration",
-    team_size: 4,
-    description:
-      "Cartographie spectrale par drone pour la détection précoce du stress hydrique, cartographie des carences en azote et surveillance des ravageurs sur grandes cultures.",
-    website_url: "https://dronefield.example.org",
-    is_verified_label: false,
-    founded_at: "2024-08-01",
-  },
-  {
-    id: "seed-5",
-    name: "SolarHarvest Hub",
-    sector: "Énergie & Conservation",
+    name: "CocoaTrace Hub",
+    sector: "Traçabilité & Qualité Cacao",
     stage: "acceleration",
     team_size: 5,
     description:
-      "Chambres froides mobiles 100% solaires déployées au plus près des champs maraîchers, réduisant les pertes post-récolte de 80% pour les coopératives locales.",
-    website_url: "https://solarharvest.example.org",
+      "Application mobile de géolocalisation des parcelles, pesée connectée et contrôle qualité post-récolte pour coopératives cacaoyères certifiées.",
+    website_url: "https://cocoatrace.agrilab.ci",
     is_verified_label: false,
-    founded_at: "2024-09-12",
+    founded_at: "2025-05-10",
+  },
+  {
+    id: "seed-4",
+    name: "SolarKool Maraîcher",
+    sector: "Énergie Solaire & Froid",
+    stage: "acceleration",
+    team_size: 3,
+    description:
+      "Mini-chambres froides mobiles fonctionnant à l'énergie solaire pour limiter les pertes post-récolte de tomates, piments et légumes feuilles.",
+    website_url: "https://solarkool.ci",
+    is_verified_label: false,
+    founded_at: "2025-06-01",
+  },
+  {
+    id: "seed-5",
+    name: "DroneAgri Scan",
+    sector: "Télédétection & Cartographie",
+    stage: "onboarding",
+    team_size: 2,
+    description:
+      "Surveillance multispectrale des plantations d'hévéa et de palmier pour la détection précoce du stress hydrique et des attaques fongiques.",
+    website_url: "https://droneagri-scan.ci",
+    is_verified_label: false,
+    founded_at: "2025-08-12",
   },
   {
     id: "seed-6",
-    name: "GrainoStock Connect",
-    sector: "Fintech & Stockage",
-    stage: "onboarding",
-    team_size: 4,
+    name: "GrainoWarrant",
+    sector: "Fintech Rurale & Stockage",
+    stage: "diagnostic",
+    team_size: 2,
     description:
-      "Système de récépissés d'entrepôt numérisés permettant aux petits producteurs de stocker leurs céréales en sécurité et de débloquer du microcrédit de trésorerie.",
-    website_url: "https://grainostock.example.org",
+      "Plateforme de warrantage agricole digitalisant les stocks villageois de maïs et de riz pour faciliter l'octroi de microcrédits de campagne.",
+    website_url: "https://grainowarrant.ci",
     is_verified_label: false,
-    founded_at: "2024-11-05",
+    founded_at: "2025-09-05",
   },
 ];
 
@@ -260,8 +260,8 @@ export default function Index() {
   const [activeModalStartup, setActiveModalStartup] = useState<StartupItem | null>(null);
 
   // Global counts for courses and farmers
-  const [dbCoursesCount, setDbCoursesCount] = useState<number>(32);
-  const [dbFarmersCount, setDbFarmersCount] = useState<number>(3850);
+  const [dbCoursesCount, setDbCoursesCount] = useState<number>(4);
+  const [dbFarmersCount, setDbFarmersCount] = useState<number>(9);
 
   // Fetch dynamic startup data from Supabase
   const fetchStartupData = async () => {
@@ -287,11 +287,11 @@ export default function Index() {
         supabase.from("profiles" as any).select("id", { count: "exact", head: true }),
       ]);
 
-      if (coursesRes.count && coursesRes.count > 0) {
-        setDbCoursesCount(Math.max(coursesRes.count, 28));
+      if (coursesRes.count !== null && coursesRes.count !== undefined) {
+        setDbCoursesCount(coursesRes.count);
       }
-      if (profilesRes.count && profilesRes.count > 0) {
-        setDbFarmersCount(Math.max(profilesRes.count + 3500, 3850));
+      if (profilesRes.count !== null && profilesRes.count !== undefined) {
+        setDbFarmersCount(profilesRes.count);
       }
 
       if (dbStartups && dbStartups.length > 0) {
@@ -504,8 +504,8 @@ export default function Index() {
               <span>
                 Données d'incubation en direct :{" "}
                 <strong className="text-foreground">{dynamicMetrics.totalStartups} startups actives</strong> ·{" "}
-                <strong className="text-foreground">{dynamicMetrics.certifiedCount} labellisées</strong> ·{" "}
-                <strong className="text-foreground">{dynamicMetrics.totalJobsCreated} emplois créés</strong>
+                <strong className="text-foreground">{dynamicMetrics.certifiedCount} labellisée{dynamicMetrics.certifiedCount > 1 ? "s" : ""}</strong> ·{" "}
+                <strong className="text-foreground">{dynamicMetrics.totalJobsCreated} membres d'équipe</strong>
               </span>
             </div>
 
@@ -607,13 +607,13 @@ export default function Index() {
                     </Badge>
                   </div>
                   <div className="text-4xl font-extrabold tracking-tight text-foreground pt-2">
-                    {dynamicMetrics.totalJobsCreated}+
+                    {dynamicMetrics.totalJobsCreated}
                   </div>
                   <div className="font-semibold text-base text-foreground">
-                    Emplois & chercheurs mobilisés
+                    Ingénieurs & Fondateurs mobilisés
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Ingénieurs, agronomes et spécialistes de terrain composant les équipes fondatrices des startups.
+                    Agronomes, développeurs et spécialistes de terrain composant les équipes fondatrices des startups.
                   </p>
                 </CardContent>
               </Card>
@@ -656,10 +656,10 @@ export default function Index() {
                     {dynamicMetrics.survivalRate}%
                   </div>
                   <div className="font-semibold text-base text-foreground">
-                    Taux de survie à 3 ans
+                    Taux d'avancement du parcours
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Pérennité assurée par les revues de gouvernance mensuelle et l'accès au FabLab agronomique.
+                    Proportion des startups franchissant avec succès le diagnostic vers l'onboarding et l'accélération.
                   </p>
                 </CardContent>
               </Card>
@@ -676,13 +676,13 @@ export default function Index() {
                     </Badge>
                   </div>
                   <div className="text-4xl font-extrabold tracking-tight text-foreground pt-2">
-                    {dbFarmersCount.toLocaleString("fr-FR")}+
+                    {dbFarmersCount}
                   </div>
                   <div className="font-semibold text-base text-foreground">
-                    Producteurs & apprenants formés
+                    Apprenants & Professionnels inscrits
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Formés sur les {dbCoursesCount} cours et modules techniques pour adopter les technologies incubées.
+                    Inscrits sur les {dbCoursesCount} cours et modules certifiants disponibles sur la plateforme.
                   </p>
                 </CardContent>
               </Card>
