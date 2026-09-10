@@ -35,7 +35,7 @@ import { toast } from "sonner";
 const UsersManagement = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"all" | "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur" | "incubé">("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur" | "incube">("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -47,7 +47,7 @@ const UsersManagement = () => {
     phone: "",
     bio: "",
     experience_years: "",
-    role: "apprenant" as "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur" | "incubé",
+    role: "apprenant" as "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur" | "incube",
   });
 
   const { data: currentUser } = useQuery({
@@ -316,7 +316,7 @@ const UsersManagement = () => {
       formateur: "secondary",
       editeur: "secondary",
       apprenant: "outline",
-      "incubé": "secondary",
+      incube: "secondary",
     };
     return (
       <Badge variant={variants[role] || "outline"}>
@@ -325,7 +325,7 @@ const UsersManagement = () => {
         {role === "formateur" && "👨‍🏫 "}
         {role === "editeur" && "✍️ "}
         {role === "apprenant" && "👤 "}
-        {role === "incubé" && "🌱 "}
+        {role === "incube" && "🌱 "}
         {role}
       </Badge>
     );
@@ -441,7 +441,7 @@ const UsersManagement = () => {
                   <Label htmlFor="role">Rôle *</Label>
                   <Select
                     value={formData.role}
-                    onValueChange={(value: "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur" | "incubé") =>
+                    onValueChange={(value: "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur" | "incube") =>
                       setFormData({ ...formData, role: value })
                     }
                   >
@@ -454,7 +454,7 @@ const UsersManagement = () => {
                       <SelectItem value="editeur">✍️ Éditeur</SelectItem>
                       <SelectItem value="superadmin">🔑 Super Admin</SelectItem>
                       <SelectItem value="superviseur">🛡️ Superviseur</SelectItem>
-                      <SelectItem value="incubé">🌱 Incubé</SelectItem>
+                      <SelectItem value="incube">🌱 Incubé</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -484,7 +484,7 @@ const UsersManagement = () => {
           </div>
           <div>
             <Label>Filtrer par rôle</Label>
-            <Select value={roleFilter} onValueChange={(v: "all" | "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur" | "incubé") => setRoleFilter(v)}>
+            <Select value={roleFilter} onValueChange={(v: "all" | "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur" | "incube") => setRoleFilter(v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Tous les rôles" />
               </SelectTrigger>
@@ -495,7 +495,7 @@ const UsersManagement = () => {
                 <SelectItem value="editeur">✍️ Éditeur</SelectItem>
                 <SelectItem value="superviseur">🛡️ Superviseur</SelectItem>
                 <SelectItem value="superadmin">🔑 Super Admin</SelectItem>
-                <SelectItem value="incubé">🌱 Incubé</SelectItem>
+                <SelectItem value="incube">🌱 Incubé</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -650,7 +650,7 @@ const UsersManagement = () => {
                 <Label htmlFor="edit-role">Rôle *</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value: "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur" | "incubé") =>
+                  onValueChange={(value: "apprenant" | "formateur" | "superviseur" | "superadmin" | "editeur" | "incube") =>
                     setFormData({ ...formData, role: value })
                   }
                 >
@@ -663,7 +663,7 @@ const UsersManagement = () => {
                     <SelectItem value="editeur">✍️ Éditeur</SelectItem>
                     <SelectItem value="superadmin">🔑 Super Admin</SelectItem>
                     <SelectItem value="superviseur">🛡️ Superviseur</SelectItem>
-                    <SelectItem value="incubé">🌱 Incubé</SelectItem>
+                    <SelectItem value="incube">🌱 Incubé</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

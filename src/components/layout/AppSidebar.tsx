@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Home, BookOpen, Shield, Users, Calendar as CalendarIcon, LogOut, Award, Settings, Rocket, TrendingUp, Cpu, Map, TestTube } from "lucide-react";
+import { Home, BookOpen, Shield, Users, Calendar as CalendarIcon, LogOut, Award, Settings, Rocket, TrendingUp, Cpu, Map, TestTube, Microscope } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -27,6 +27,8 @@ const AppSidebar = ({ userRole }: AppSidebarProps) => {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = React.useState(false);
 
+  const isIncube = (userRole as unknown as string) === "incube";
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -44,22 +46,28 @@ const AppSidebar = ({ userRole }: AppSidebarProps) => {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={location.pathname.startsWith("/courses")}>
-                <Link to="/courses">
-                  <BookOpen className="size-4" />
-                  Cours
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={location.pathname.startsWith("/calendar")}>
-                <Link to="/calendar">
-                  <CalendarIcon className="size-4" />
-                  Calendrier
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+
+            {/* Cours & Calendrier : masqués pour incubé, ils ont leur propre espace */}
+            {!isIncube && (
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location.pathname.startsWith("/courses")}>
+                    <Link to="/courses">
+                      <BookOpen className="size-4" />
+                      Cours
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location.pathname.startsWith("/calendar")}>
+                    <Link to="/calendar">
+                      <CalendarIcon className="size-4" />
+                      Calendrier
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
+            )}
 
             {/* Items pour Formateurs et Admins */}
             {(userRole === "formateur" || userRole === "superadmin" || userRole === "superviseur") && (
@@ -87,20 +95,6 @@ const AppSidebar = ({ userRole }: AppSidebarProps) => {
               </SidebarMenuItem>
             )}
 
-            {/* Items pour rôle incubé */}
-            {(userRole as unknown as string) === "incube" && (
-              <>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location.pathname.startsWith("/incubation")}>
-                    <Link to="/incubation/dashboard">
-                      <Rocket className="size-4" />
-                      Mon Incubation
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </>
-            )}
-
             {/* Items pour Admins seulement */}
             {userRole === "superadmin" && (
               <SidebarMenuItem>
@@ -115,6 +109,71 @@ const AppSidebar = ({ userRole }: AppSidebarProps) => {
           </SidebarMenu>
         </SidebarGroup>
         <SidebarSeparator />
+
+        {/* Section Mon Parcours d'Incubation — pour incubé */}
+        {isIncube && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Mon Incubation</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname === "/incubation/dashboard"}>
+                  <Link to="/incubation/dashboard">
+                    <Rocket className="size-4 text-emerald-600" />
+                    Vue d'ensemble
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname === "/incubation/diagnostic"}>
+                  <Link to="/incubation/diagnostic">
+                    <Microscope className="size-4" />
+                    <span className="flex-1">1 · Diagnostic</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname === "/incubation/onboarding"}>
+                  <Link to="/incubation/onboarding">
+                    <Map className="size-4" />
+                    <span className="flex-1">2 · Onboarding</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname === "/incubation/acceleration"}>
+                  <Link to="/incubation/acceleration">
+                    <Rocket className="size-4" />
+                    <span className="flex-1">3 · Accélération</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname === "/incubation/kpi"}>
+                  <Link to="/incubation/kpi">
+                    <TrendingUp className="size-4" />
+                    <span className="flex-1">4 · KPI & Pilotage</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname === "/incubation/labellisation"}>
+                  <Link to="/incubation/labellisation">
+                    <Award className="size-4" />
+                    <span className="flex-1">5 · Labellisation</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname === "/incubation/acceleration"}>
+                  <Link to="/incubation/acceleration">
+                    <Cpu className="size-4" />
+                    Fablab
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
 
         {/* Section Administration pour SuperAdmin */}
         {userRole === "superadmin" && (
