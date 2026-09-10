@@ -8,6 +8,7 @@ import FormateurDashboard from "@/components/dashboard/FormateurDashboard";
 import SuperAdminDashboard from "@/components/dashboard/SuperAdminDashboard";
 import SupervisorDashboard from "@/components/dashboard/SupervisorDashboard";
 import EditorDashboard from "@/components/dashboard/EditorDashboard";
+import IncubeDashboard from "@/components/dashboard/IncubeDashboard";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Enums } from "@/integrations/supabase/types";
 
@@ -126,6 +127,12 @@ const Dashboard = () => {
         return (
           <DashboardLayout title="Édition" description="Gestion du contenu">
             <EditorDashboard user={user} />
+          </DashboardLayout>
+        );
+      case "incube":
+        return (
+          <DashboardLayout title="Mon Incubation" description="Parcours d'incubation GrainoLab">
+            <IncubeDashboard user={user} />
           </DashboardLayout>
         );
       default:

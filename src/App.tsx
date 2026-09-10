@@ -24,6 +24,17 @@ import FinalAssessmentView from "./pages/FinalAssessmentView";
 import MyCourses from "./pages/editor/MyCourses";
 import CourseEditor from "./pages/editor/CourseEditor";
 
+// Incubation Pages
+import IncubationDashboard from "./pages/incubation/IncubationDashboard";
+import DiagnosticPage from "./pages/incubation/DiagnosticPage";
+import OnboardingPage from "./pages/incubation/OnboardingPage";
+import AccelerationPage from "./pages/incubation/AccelerationPage";
+import KpiPage from "./pages/incubation/KpiPage";
+import LabellisationPage from "./pages/incubation/LabellisationPage";
+import IncubationAdmin from "./pages/admin/incubation/IncubationAdmin";
+import StartupDetail from "./pages/admin/incubation/StartupDetail";
+import LabelVerification from "./pages/LabelVerification";
+
 const queryClient = new QueryClient();
 
 const ShellLayout = () => (
@@ -42,6 +53,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-label/:code" element={<LabelVerification />} />
           <Route element={<ShellLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<CalendarPage />} />
@@ -61,6 +73,18 @@ const App = () => (
             <Route path="/editor/my-courses" element={<MyCourses />} />
             <Route path="/editor/courses/new" element={<CourseEditor />} />
             <Route path="/editor/courses/:id/edit" element={<CourseEditor />} />
+
+            {/* Incubation Routes (Incubé) */}
+            <Route path="/incubation/dashboard" element={<IncubationDashboard />} />
+            <Route path="/incubation/diagnostic" element={<DiagnosticPage />} />
+            <Route path="/incubation/onboarding" element={<OnboardingPage />} />
+            <Route path="/incubation/acceleration" element={<AccelerationPage />} />
+            <Route path="/incubation/kpi" element={<KpiPage />} />
+            <Route path="/incubation/labellisation" element={<LabellisationPage />} />
+
+            {/* Incubation Admin Routes */}
+            <Route path="/admin/incubation" element={<IncubationAdmin />} />
+            <Route path="/admin/incubation/:id" element={<StartupDetail />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

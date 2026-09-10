@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Home, BookOpen, Shield, Users, Calendar as CalendarIcon, LogOut, Award, Settings } from "lucide-react";
+import { Home, BookOpen, Shield, Users, Calendar as CalendarIcon, LogOut, Award, Settings, Rocket, TrendingUp, Cpu, Map, TestTube } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -87,6 +87,20 @@ const AppSidebar = ({ userRole }: AppSidebarProps) => {
               </SidebarMenuItem>
             )}
 
+            {/* Items pour rôle incubé */}
+            {(userRole as unknown as string) === "incube" && (
+              <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location.pathname.startsWith("/incubation")}>
+                    <Link to="/incubation/dashboard">
+                      <Rocket className="size-4" />
+                      Mon Incubation
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </>
+            )}
+
             {/* Items pour Admins seulement */}
             {userRole === "superadmin" && (
               <SidebarMenuItem>
@@ -136,6 +150,23 @@ const AppSidebar = ({ userRole }: AppSidebarProps) => {
                   <Link to="/admin/certificate-settings">
                     <Settings className="size-4" />
                     Paramètres des certificats
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
+
+        {/* Section Incubation pour formateurs et superadmin */}
+        {(userRole === "superadmin" || userRole === "formateur" || userRole === "superviseur") && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Incubation</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={location.pathname.startsWith("/admin/incubation")}>
+                  <Link to="/admin/incubation">
+                    <Rocket className="size-4" />
+                    Suivi start-ups
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
